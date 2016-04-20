@@ -1,0 +1,32 @@
+## -*- Mode: python; py-indent-offset: 4; indent-tabs-mode: nil; coding: utf-8; -*-
+import sys
+import Options
+
+def build(bld):
+    module = bld.create_ns3_module('l4-platform', ['core', 'simulator', 'node'])
+    if Options.platform == 'darwin':
+        module.env.append_value('CCFLAGS','-DDARWIN')
+        module.env.append_value('CXXFLAGS','-DDARWIN')
+    module.source = [
+        'transport-select.cc',
+        'transport-socket.cc',
+        'udp-transport-socket-impl.cc',
+        'tcp-transport-socket-impl.cc',
+        'l4-device.cc',
+        'udp-transport-socket-factory-impl.cc',
+        'tcp-transport-socket-factory-impl.cc',
+        'l4-platform-helper.cc',
+        ]
+    headers = bld.new_task_gen('ns3header')
+    headers.module = 'l4-platform'
+    headers.source = [
+        'transport-select.h',
+        'transport-socket.h',
+        'udp-transport-socket-impl.h',
+        'tcp-transport-socket-impl.h',
+        'l4-device.h',
+        'udp-transport-socket-factory-impl.h',
+        'tcp-transport-socket-factory-impl.h',
+        'l4-platform-helper.h',
+        ]
+
