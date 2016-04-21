@@ -110,11 +110,10 @@ route is the one with the fewest hops.<br>
  	&nbsp&nbsp &nbsp&nbsp 1. See the details in [1] for a good suggestion on how to implement Dijkstra's algorithm. The result of this
 algorithm should be a routing table containing the next-hop neighbor to send to for each destination
 address.<br>
- 	&nbsp&nbsp &nbsp&nbsp 2.  You should forward packets using the next-hop neighbors in your calculated routing table. The excep-
-tion is packets sent to the network broadcast address (e.g., for neighbor discovery or sending link state
+ 	&nbsp&nbsp &nbsp&nbsp 2.  You should forward packets using the next-hop neighbors in your calculated routing table. The exception is packets sent to the network broadcast address (e.g., for neighbor discovery or sending link state
 information); these should be flooded. Note that when your node receives a packet, it may perform
-one of three actions: (1) if the packet is destined for the node, it will “deliver” the packet locally; (2) if
-the packet is destined for another node, it will “route” the packet; (3) if the packet is destined for the
+one of three actions: (1) if the packet is destined for the node, it will "deliver" the packet locally; (2) if
+the packet is destined for another node, it will "route" the packet; (3) if the packet is destined for the
 broadcast address, it will both deliver packet locally, and continue flooding the packet (while avoiding
 infinite loops).<br>
   	&nbsp&nbsp &nbsp&nbsp 3. Add a command to your node: ”DUMP ROUTES” to dump the contents of the routing table. You
