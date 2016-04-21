@@ -16,7 +16,7 @@
  * Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA  02111-1307  USA
  */
 
-/*  -----CIS-553 SIMULATOR-----
+/*  -----cs433 SIMULATOR-----
  *  Students need to implement RoutingModule for Project 1 and Application for Project 2 
  *  This code:
  *  1. Reads Topology (Inet format)
