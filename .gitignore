@@ -1,3 +1,10 @@
+# Object code
 *.o
 *.pyc
+
+# Compiled
+/ns-3/build/
+/ns-3/.waf*/
+/ns-3/.lock-wscript
+
 .tags
