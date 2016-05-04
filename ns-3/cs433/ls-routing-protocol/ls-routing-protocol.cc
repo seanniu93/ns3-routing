@@ -59,7 +59,7 @@ LSRoutingProtocol::GetTypeId (void)
 }
 
 LSRoutingProtocol::LSRoutingProtocol ()
-  : m_auditPingsTimer (Timer::CANCEL_ON_DESTROY)
+  : m_auditPingsTimer (Timer::CANCEL_ON_DESTROY), m_auditHellosTimer (Timer::CANCEL_ON_DESTROY)
 {
   RandomVariable random;
   SeedManager::SetSeed (time (NULL));
@@ -235,6 +235,21 @@ LSRoutingProtocol::BroadcastPacket (Ptr<Packet> packet)
 }
 
 void
+LSRoutingProtocol::SendPacket (Ptr<Packet> packet, Ptr<Socket> socket)
+{
+  std::map<Ptr<Socket> , Ipv4InterfaceAddress>::const_iterator i = m_socketAddresses.find(socket);
+  if (i != m_socketAddresses.end())
+    {
+      Ipv4Address broadcastAddr = i->second.GetLocal ().GetSubnetDirectedBroadcast (i->second.GetMask ());
+      i->first->SendTo (packet, 0, InetSocketAddress (broadcastAddr, m_lsPort));
+    }
+  else
+    {
+      ERROR_LOG ("Didn't find socket in m_socketAddresses");
+    }
+}
+
+void
 LSRoutingProtocol::ProcessCommand (std::vector<std::string> tokens)
 {
   std::vector<std::string>::iterator iterator = tokens.begin();
@@ -288,6 +303,20 @@ LSRoutingProtocol::ProcessCommand (std::vector<std::string> tokens)
         {
           DumpLSA ();
         }
+    }
+  else if (command == "HELLO")
+    {
+      Ipv4Address destAddress = ResolveNodeIpAddress (0); // TODO remove this and "hello"
+      uint32_t sequenceNumber = GetNextSequenceNumber ();
+      TRAFFIC_LOG ("Broadcasting HELLO_REQ, SequenceNumber: " << sequenceNumber);
+      Ptr<HelloRequest> helloRequest = Create<HelloRequest> (sequenceNumber, Simulator::Now(), destAddress, "hello");
+      // Add to ping-tracker
+      m_helloTracker.insert (std::make_pair (sequenceNumber, helloRequest));
+      Ptr<Packet> packet = Create<Packet> ();
+      LSMessage lsMessage = LSMessage (LSMessage::HELLO_REQ, sequenceNumber, 1, m_mainAddress);
+      lsMessage.SetHelloReq (destAddress, "hello");
+      packet->AddHeader (lsMessage);
+      BroadcastPacket (packet);
     }
 }
 
@@ -343,6 +372,12 @@ LSRoutingProtocol::RecvLSMessage (Ptr<Socket> socket)
       case LSMessage::PING_RSP:
         ProcessPingRsp (lsMessage);
         break;
+      case LSMessage::HELLO_REQ:
+        ProcessHelloReq (lsMessage, socket);
+        break;
+      case LSMessage::HELLO_RSP:
+        ProcessHelloRsp (lsMessage);
+        break;
       default:
         ERROR_LOG ("Unknown Message Type!");
         break;
@@ -388,6 +423,40 @@ LSRoutingProtocol::ProcessPingRsp (LSMessage lsMessage)
         }
     }
 }
+
+void
+LSRoutingProtocol::ProcessHelloReq (LSMessage lsMessage, Ptr<Socket> socket)
+{
+  // Use reverse lookup for ease of debug
+  std::string fromNode = ReverseLookup (lsMessage.GetOriginatorAddress ());
+  TRAFFIC_LOG ("Received HELLO_REQ, From Node: " << fromNode);
+  // Send Hello Response
+  LSMessage lsResp = LSMessage (LSMessage::HELLO_RSP, lsMessage.GetSequenceNumber(), 1, m_mainAddress);
+  lsResp.SetHelloRsp (lsMessage.GetOriginatorAddress(), lsMessage.GetHelloReq().helloMessage);
+  Ptr<Packet> packet = Create<Packet> ();
+  packet->AddHeader (lsResp);
+  DEBUG_LOG ("Sending HELLO_RSP, To Node: " << fromNode);
+  SendPacket (packet, socket);
+}
+
+void
+LSRoutingProtocol::ProcessHelloRsp (LSMessage lsMessage)
+{
+  // Remove from HelloTracker
+  // std::map<uint32_t, Ptr<HelloRequest> >::iterator iter;
+  // iter = m_helloTracker.find (lsMessage.GetSequenceNumber ());
+  // if (iter != m_helloTracker.end ())
+  //   {
+      std::string fromNode = ReverseLookup (lsMessage.GetOriginatorAddress ());
+      TRAFFIC_LOG ("Received Hello_RSP, From Node: " << fromNode << ", Message: " << lsMessage.GetHelloRsp().helloMessage);
+  //     m_helloTracker.erase (iter);
+  //   }
+  // else
+  //   {
+  //     DEBUG_LOG ("Received invalid Hello_RSP!");
+  //   }
+}
+
 
 bool
 LSRoutingProtocol::IsOwnAddress (Ipv4Address originatorAddress)
@@ -460,3 +529,7 @@ LSRoutingProtocol::SetIpv4 (Ptr<Ipv4> ipv4)
   m_ipv4 = ipv4;
   m_staticRouting->SetIpv4 (m_ipv4);
 }
+
+/******************************************************************************
+ * Hello
+ ******************************************************************************/

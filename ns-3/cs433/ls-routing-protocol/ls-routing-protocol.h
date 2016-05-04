@@ -27,6 +27,7 @@
 #include "ns3/timer.h"
 
 #include "ns3/ping-request.h"
+#include "ns3/hello-request.h"
 #include "ns3/comm-routing-protocol.h"
 #include "ns3/ls-message.h"
 
@@ -88,6 +89,8 @@ class LSRoutingProtocol : public CommRoutingProtocol
     void RecvLSMessage (Ptr<Socket> socket);
     void ProcessPingReq (LSMessage lsMessage);
     void ProcessPingRsp (LSMessage lsMessage);
+    void ProcessHelloReq (LSMessage lsMessage, Ptr<Socket> socket);
+    void ProcessHelloRsp (LSMessage lsMessage);
 
     // Periodic Audit
     void AuditPings ();
@@ -187,6 +190,9 @@ class LSRoutingProtocol : public CommRoutingProtocol
      * \param packet Packet to be sent.
      */
     void BroadcastPacket (Ptr<Packet> packet);
+
+    void SendPacket (Ptr<Packet> packet, Ptr<Socket> socket);
+
     /**
      * \brief Returns the main IP address of a node in Inet topology.
      *
@@ -227,6 +233,7 @@ class LSRoutingProtocol : public CommRoutingProtocol
     Ptr<Ipv4StaticRouting> m_staticRouting;
     Ptr<Ipv4> m_ipv4;
     Time m_pingTimeout;
+    Time m_helloTimeout;
     uint8_t m_maxTTL;
     uint16_t m_lsPort;
     uint32_t m_currentSequenceNumber;
@@ -234,8 +241,10 @@ class LSRoutingProtocol : public CommRoutingProtocol
     std::map<Ipv4Address, uint32_t> m_addressNodeMap;
     // Timers
     Timer m_auditPingsTimer;
+    Timer m_auditHellosTimer;
     // Ping tracker
     std::map<uint32_t, Ptr<PingRequest> > m_pingTracker;
+    std::map<uint32_t, Ptr<HelloRequest> > m_helloTracker;
 };
 
 #endif
