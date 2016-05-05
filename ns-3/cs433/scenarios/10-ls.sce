@@ -44,7 +44,7 @@ TIME 10
 1 LS DUMP ROUTES
 
 # Send application level PING from node 1 to node 8. Note that Application level PINGs are unicast packets and supposed to traverse multiple hops.
-1 APP PING 8 Hello
+1 LS PING 8 Hello
 
 TIME 4000
 

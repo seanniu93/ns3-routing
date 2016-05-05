@@ -47,7 +47,10 @@ TIME 10
 # Send link level PING from node 1 to node 8.
 1 LS HELLO
 
-TIME 4000
+TIME 2000
+
+8 LS DUMP NEIGHBORS
+0 LS DUMP NEIGHBORS
 
 # Quit the simulator. Commented for now.
 #QUIT

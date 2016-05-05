@@ -90,7 +90,7 @@ class LSRoutingProtocol : public CommRoutingProtocol
     void ProcessPingReq (LSMessage lsMessage);
     void ProcessPingRsp (LSMessage lsMessage);
     void ProcessHelloReq (LSMessage lsMessage, Ptr<Socket> socket);
-    void ProcessHelloRsp (LSMessage lsMessage);
+    void ProcessHelloRsp (LSMessage lsMessage, Ptr<Socket> socket);
 
     // Periodic Audit
     void AuditPings ();
@@ -245,6 +245,23 @@ class LSRoutingProtocol : public CommRoutingProtocol
     // Ping tracker
     std::map<uint32_t, Ptr<PingRequest> > m_pingTracker;
     std::map<uint32_t, Ptr<HelloRequest> > m_helloTracker;
+
+    struct RoutingTableEntry {
+      Ipv4Address destAddr;
+      uint32_t nextHopNum;
+      Ipv4Address nextHopAddr;
+      Ipv4Address interfaceAddr;
+      uint32_t cost;
+    };
+
+    struct NeighborTableEntry {
+      Ipv4Address neighborAddr;
+      Ipv4Address interfaceAddr;
+    };
+
+    std::map<std::string, NeighborTableEntry> m_neighborTable;
+    std::map<std::string, RoutingTableEntry> m_routingTable;
+
 };
 
 #endif

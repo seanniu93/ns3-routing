@@ -141,10 +141,16 @@ LSRoutingProtocol::ReverseLookup (Ipv4Address ipAddress)
 void
 LSRoutingProtocol::DoStart ()
 {
+
+  std::cout << m_ipv4->GetNInterfaces() << '\n';
+
   // Create sockets
   for (uint32_t i = 0 ; i < m_ipv4->GetNInterfaces () ; i++)
     {
       Ipv4Address ipAddress = m_ipv4->GetAddress (i, 0).GetLocal ();
+
+      //std::cout << i << ", " << ipAddress << '\n';
+
       if (ipAddress == Ipv4Address::GetLoopback ())
         continue;
       // Create socket on this interface
@@ -160,6 +166,10 @@ LSRoutingProtocol::DoStart ()
       Ptr<NetDevice> netDevice = m_ipv4->GetNetDevice (i);
       socket->BindToNetDevice (netDevice);
       m_socketAddresses[socket] = m_ipv4->GetAddress (i, 0);
+
+      std::cout << i << ", " << ipAddress << ", " << socket << ", " << inetAddr << ", " << m_ipv4->GetAddress(i, 0) << '\n';
+
+
     }
   // Configure timers
   m_auditPingsTimer.SetFunction (&LSRoutingProtocol::AuditPings, this);
@@ -229,6 +239,7 @@ LSRoutingProtocol::BroadcastPacket (Ptr<Packet> packet)
   for (std::map<Ptr<Socket> , Ipv4InterfaceAddress>::const_iterator i =
       m_socketAddresses.begin (); i != m_socketAddresses.end (); i++)
     {
+      //TRAFFIC_LOG( "Interface Addr: " << i->second.GetLocal());
       Ipv4Address broadcastAddr = i->second.GetLocal ().GetSubnetDirectedBroadcast (i->second.GetMask ());
       i->first->SendTo (packet, 0, InetSocketAddress (broadcastAddr, m_lsPort));
     }
@@ -333,7 +344,15 @@ LSRoutingProtocol::DumpNeighbors ()
 {
   STATUS_LOG (std::endl << "**************** Neighbor List ********************" << std::endl
               << "NeighborNumber\t\tNeighborAddr\t\tInterfaceAddr");
-  PRINT_LOG ("");
+  for (std::map<std::string, NeighborTableEntry>::const_iterator i =
+      m_neighborTable.begin (); i != m_neighborTable.end (); i++)
+    {
+      NeighborTableEntry entry = i->second;
+      PRINT_LOG (i->first << "\t\t\t" << entry.neighborAddr << "\t\t" << entry.interfaceAddr << std::endl);
+    }
+
+    PRINT_LOG ("");
+
 
   /*NOTE: For purpose of autograding, you should invoke the following function for each
   neighbor table entry. The output format is indicated by parameter name and type.
@@ -364,6 +383,8 @@ LSRoutingProtocol::RecvLSMessage (Ptr<Socket> socket)
   LSMessage lsMessage;
   packet->RemoveHeader (lsMessage);
 
+//  TRAFFIC_LOG( "SourceAddr: " << sourceAddress << '\n');
+
   switch (lsMessage.GetMessageType ())
     {
       case LSMessage::PING_REQ:
@@ -376,7 +397,7 @@ LSRoutingProtocol::RecvLSMessage (Ptr<Socket> socket)
         ProcessHelloReq (lsMessage, socket);
         break;
       case LSMessage::HELLO_RSP:
-        ProcessHelloRsp (lsMessage);
+        ProcessHelloRsp (lsMessage, socket);
         break;
       default:
         ERROR_LOG ("Unknown Message Type!");
@@ -392,7 +413,7 @@ LSRoutingProtocol::ProcessPingReq (LSMessage lsMessage)
     {
       // Use reverse lookup for ease of debug
       std::string fromNode = ReverseLookup (lsMessage.GetOriginatorAddress ());
-      TRAFFIC_LOG ("Received PING_REQ, From Node: " << fromNode << ", Message: " << lsMessage.GetPingReq().pingMessage);
+      TRAFFIC_LOG ("Received PING_REQ, From Node: " << fromNode << ", OrigAddr: " << lsMessage.GetOriginatorAddress() << ", Message: " << lsMessage.GetPingReq().pingMessage);
       // Send Ping Response
       LSMessage lsResp = LSMessage (LSMessage::PING_RSP, lsMessage.GetSequenceNumber(), m_maxTTL, m_mainAddress);
       lsResp.SetPingRsp (lsMessage.GetOriginatorAddress(), lsMessage.GetPingReq().pingMessage);
@@ -414,7 +435,7 @@ LSRoutingProtocol::ProcessPingRsp (LSMessage lsMessage)
       if (iter != m_pingTracker.end ())
         {
           std::string fromNode = ReverseLookup (lsMessage.GetOriginatorAddress ());
-          TRAFFIC_LOG ("Received PING_RSP, From Node: " << fromNode << ", Message: " << lsMessage.GetPingRsp().pingMessage);
+          TRAFFIC_LOG ("Received PING_RSP, From Node: " << fromNode << ", OrigAddr: " << lsMessage.GetOriginatorAddress() << ", Message: " << lsMessage.GetPingRsp().pingMessage);
           m_pingTracker.erase (iter);
         }
       else
@@ -428,27 +449,71 @@ void
 LSRoutingProtocol::ProcessHelloReq (LSMessage lsMessage, Ptr<Socket> socket)
 {
   // Use reverse lookup for ease of debug
-  std::string fromNode = ReverseLookup (lsMessage.GetOriginatorAddress ());
-  TRAFFIC_LOG ("Received HELLO_REQ, From Node: " << fromNode);
+  //std::string fromNode = ReverseLookup (lsMessage.GetOriginatorAddress ());
+  //TRAFFIC_LOG ("Received HELLO_REQ, From Node: " << fromNode);
+
+  Ipv4Address neighAddr = lsMessage.GetOriginatorAddress();
+  std::string fromNode = ReverseLookup (lsMessage.GetOriginatorAddress());
+  Ipv4Address interfaceAddr;
+
+  std::map<Ptr<Socket> , Ipv4InterfaceAddress>::const_iterator i = m_socketAddresses.find(socket);
+  if (i != m_socketAddresses.end())
+    {
+      interfaceAddr = i->second.GetLocal();
+    }
+  else
+    {
+      ERROR_LOG ("Didn't find socket in m_socketAddresses");
+    }
+ 
+   TRAFFIC_LOG( "Received HelloReq, From Neighbor: " << fromNode << ", with Addr: " << neighAddr << ", InterfaceAddr: " << interfaceAddr << '\n');
+
+
+    NeighborTableEntry entry = { neighAddr, interfaceAddr };
+    m_neighborTable.insert(std::make_pair(fromNode, entry)); 
+
+
+
+
   // Send Hello Response
-  LSMessage lsResp = LSMessage (LSMessage::HELLO_RSP, lsMessage.GetSequenceNumber(), 1, m_mainAddress);
-  lsResp.SetHelloRsp (lsMessage.GetOriginatorAddress(), lsMessage.GetHelloReq().helloMessage);
-  Ptr<Packet> packet = Create<Packet> ();
-  packet->AddHeader (lsResp);
-  DEBUG_LOG ("Sending HELLO_RSP, To Node: " << fromNode);
-  SendPacket (packet, socket);
+//  LSMessage lsResp = LSMessage (LSMessage::HELLO_RSP, lsMessage.GetSequenceNumber(), 1, m_mainAddress);
+//  lsResp.SetHelloRsp (lsMessage.GetOriginatorAddress(), lsMessage.GetHelloReq().helloMessage);
+//  Ptr<Packet> packet = Create<Packet> ();
+//  packet->AddHeader (lsResp);
+//  DEBUG_LOG ("Sending HELLO_RSP, To Node: " << fromNode);
+//  SendPacket (packet, socket);
+  //BroadcastPacket (packet);
+
 }
 
 void
-LSRoutingProtocol::ProcessHelloRsp (LSMessage lsMessage)
+LSRoutingProtocol::ProcessHelloRsp (LSMessage lsMessage, Ptr<Socket> socket)
 {
+  Ipv4Address neighAddr = lsMessage.GetOriginatorAddress();
+  std::string fromNode = ReverseLookup (lsMessage.GetOriginatorAddress());
+  Ipv4Address interfaceAddr;
+
+  std::map<Ptr<Socket> , Ipv4InterfaceAddress>::const_iterator i = m_socketAddresses.find(socket);
+  if (i != m_socketAddresses.end())
+    {
+      interfaceAddr = i->second.GetLocal();
+      //Ipv4Address broadcastAddr = i->second.GetLocal ().GetSubnetDirectedBroadcast (i->second.GetMask ());
+      //i->first->SendTo (packet, 0, InetSocketAddress (broadcastAddr, m_lsPort));
+    }
+  else
+    {
+      ERROR_LOG ("Didn't find socket in m_socketAddresses");
+    }
+ 
+   TRAFFIC_LOG( "Received HelloRsp, From Neighbor: " << fromNode << ", with Addr: " << neighAddr << ", InterfaceAddr: " << interfaceAddr << '\n');
+
   // Remove from HelloTracker
   // std::map<uint32_t, Ptr<HelloRequest> >::iterator iter;
   // iter = m_helloTracker.find (lsMessage.GetSequenceNumber ());
   // if (iter != m_helloTracker.end ())
   //   {
-      std::string fromNode = ReverseLookup (lsMessage.GetOriginatorAddress ());
-      TRAFFIC_LOG ("Received Hello_RSP, From Node: " << fromNode << ", Message: " << lsMessage.GetHelloRsp().helloMessage);
+//      std::string fromNode = ReverseLookup (lsMessage.GetOriginatorAddress ());
+//      TRAFFIC_LOG ("Received Hello_RSP, From Node: " << fromNode << ", Message: " << lsMessage.GetHelloRsp().helloMessage);
   //     m_helloTracker.erase (iter);
   //   }
   // else
