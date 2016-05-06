@@ -351,8 +351,7 @@ LSRoutingProtocol::DumpNeighbors ()
 {
   STATUS_LOG (std::endl << "**************** Neighbor List ********************" << std::endl
               << "NeighborNumber\t\tNeighborAddr\t\tInterfaceAddr");
-  for (std::map<std::string, NeighborTableEntry>::const_iterator i =
-      m_neighborTable.begin (); i != m_neighborTable.end (); i++)
+  for (ntEntry i = m_neighborTable.begin (); i != m_neighborTable.end (); i++)
     {
       NeighborTableEntry entry = i->second;
       PRINT_LOG (i->first << "\t\t\t" << entry.neighborAddr << "\t\t" << entry.interfaceAddr << std::endl);
@@ -475,7 +474,6 @@ LSRoutingProtocol::ProcessHelloReq (LSMessage lsMessage, Ptr<Socket> socket)
  
    TRAFFIC_LOG( "Received HelloReq, From Neighbor: " << fromNode << ", with Addr: " << neighAddr << ", InterfaceAddr: " << interfaceAddr << '\n');
 
-    typedef std::map<std::string, NeighborTableEntry>::iterator ntEntry;
     ntEntry e = m_neighborTable.find( fromNode );
 
     if ( e != m_neighborTable.end() ) {
@@ -579,8 +577,7 @@ void
 LSRoutingProtocol::AuditHellos()
 {
   // If "last updated" is more than helloTimeout seconds ago, remove it from the NeighborTable
-  for (std::map<std::string, NeighborTableEntry>::iterator i =
-      m_neighborTable.begin (); i != m_neighborTable.end (); i++)
+  for (ntEntry i = m_neighborTable.begin (); i != m_neighborTable.end (); i++)
     {
       NeighborTableEntry entry = i->second;
   //    TRAFFIC_LOG ("AUDIT HELLOS: entry.lastUpdated: " << entry.lastUpdated.GetMilliSeconds() << ", timeout: " << m_helloTimeout.GetMilliSeconds() << ", time is now: " << Simulator::Now().GetMilliSeconds());

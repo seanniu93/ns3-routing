@@ -264,6 +264,11 @@ class LSRoutingProtocol : public CommRoutingProtocol
     std::map<std::string, NeighborTableEntry> m_neighborTable;
     std::map<std::string, RoutingTableEntry> m_routingTable;
 
+    //defining iterator types for both our table maps
+    typedef std::map<std::string, NeighborTableEntry>::iterator ntEntry;
+    typedef std::map<std::string, RoutingTableEntry>::iterator rtEntry;
+
+
 };
 
 #endif
