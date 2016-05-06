@@ -94,7 +94,8 @@ class LSRoutingProtocol : public CommRoutingProtocol
 
     // Periodic Audit
     void AuditPings ();
-  
+    void AuditHellos();
+
     // From Ipv4RoutingProtocol
 
     /**
@@ -257,6 +258,7 @@ class LSRoutingProtocol : public CommRoutingProtocol
     struct NeighborTableEntry {
       Ipv4Address neighborAddr;
       Ipv4Address interfaceAddr;
+      Time lastUpdated;
     };
 
     std::map<std::string, NeighborTableEntry> m_neighborTable;

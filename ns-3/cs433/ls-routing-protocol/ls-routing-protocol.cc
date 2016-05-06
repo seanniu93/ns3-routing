@@ -49,6 +49,11 @@ LSRoutingProtocol::GetTypeId (void)
                  TimeValue (MilliSeconds (2000)),
                  MakeTimeAccessor (&LSRoutingProtocol::m_pingTimeout),
                  MakeTimeChecker ())
+  .AddAttribute ("HelloTimeout",
+                 "Timeout value for HELLO in milliseconds",
+                 TimeValue (MilliSeconds (3000)),
+                 MakeTimeAccessor (&LSRoutingProtocol::m_helloTimeout),
+                 MakeTimeChecker ())
   .AddAttribute ("MaxTTL",
                  "Maximum TTL value for LS packets",
                  UintegerValue (16),
@@ -173,9 +178,11 @@ LSRoutingProtocol::DoStart ()
     }
   // Configure timers
   m_auditPingsTimer.SetFunction (&LSRoutingProtocol::AuditPings, this);
+  m_auditHellosTimer.SetFunction (&LSRoutingProtocol::AuditHellos, this);
 
   // Start timers
   m_auditPingsTimer.Schedule (m_pingTimeout);
+  m_auditHellosTimer.Schedule (m_helloTimeout);
 
 }
 
@@ -468,10 +475,15 @@ LSRoutingProtocol::ProcessHelloReq (LSMessage lsMessage, Ptr<Socket> socket)
  
    TRAFFIC_LOG( "Received HelloReq, From Neighbor: " << fromNode << ", with Addr: " << neighAddr << ", InterfaceAddr: " << interfaceAddr << '\n');
 
+    typedef std::map<std::string, NeighborTableEntry>::iterator ntEntry;
+    ntEntry e = m_neighborTable.find( fromNode );
 
-    NeighborTableEntry entry = { neighAddr, interfaceAddr };
-    m_neighborTable.insert(std::make_pair(fromNode, entry)); 
-
+    if ( e != m_neighborTable.end() ) {
+      e->second.lastUpdated = Simulator::Now();
+    } else {
+      NeighborTableEntry entry = { neighAddr, interfaceAddr , Simulator::Now()};
+      m_neighborTable.insert(std::make_pair(fromNode, entry)); 
+    }
 
 
 
@@ -560,6 +572,29 @@ LSRoutingProtocol::AuditPings ()
   // Rechedule timer
   m_auditPingsTimer.Schedule (m_pingTimeout); 
 }
+
+
+// Add "last updated" field to Neighbor Table using Simulator::Now(). 
+void
+LSRoutingProtocol::AuditHellos()
+{
+  // If "last updated" is more than helloTimeout seconds ago, remove it from the NeighborTable
+  for (std::map<std::string, NeighborTableEntry>::iterator i =
+      m_neighborTable.begin (); i != m_neighborTable.end (); i++)
+    {
+      NeighborTableEntry entry = i->second;
+  //    TRAFFIC_LOG ("AUDIT HELLOS: entry.lastUpdated: " << entry.lastUpdated.GetMilliSeconds() << ", timeout: " << m_helloTimeout.GetMilliSeconds() << ", time is now: " << Simulator::Now().GetMilliSeconds());
+
+      if ( entry.lastUpdated.GetMilliSeconds() + m_helloTimeout.GetMilliSeconds() <= Simulator::Now().GetMilliSeconds()) {
+         m_neighborTable.erase(i);
+      }
+    }
+
+  // Reschedule timer
+  m_auditHellosTimer.Schedule (m_helloTimeout);
+
+}
+
 
 uint32_t
 LSRoutingProtocol::GetNextSequenceNumber ()
