@@ -324,18 +324,23 @@ LSRoutingProtocol::ProcessCommand (std::vector<std::string> tokens)
     }
   else if (command == "HELLO")
     {
-      Ipv4Address destAddress = ResolveNodeIpAddress (0); // TODO remove this and "hello"
-      uint32_t sequenceNumber = GetNextSequenceNumber ();
-      TRAFFIC_LOG ("Broadcasting HELLO_REQ, SequenceNumber: " << sequenceNumber);
-      Ptr<HelloRequest> helloRequest = Create<HelloRequest> (sequenceNumber, Simulator::Now(), destAddress, "hello");
-      // Add to ping-tracker
-      m_helloTracker.insert (std::make_pair (sequenceNumber, helloRequest));
-      Ptr<Packet> packet = Create<Packet> ();
-      LSMessage lsMessage = LSMessage (LSMessage::HELLO_REQ, sequenceNumber, 1, m_mainAddress);
-      lsMessage.SetHelloReq (destAddress, "hello");
-      packet->AddHeader (lsMessage);
-      BroadcastPacket (packet);
+    	SendHello ();
     }
+}
+
+void
+LSRoutingProtocol::SendHello () {
+  Ipv4Address destAddress = ResolveNodeIpAddress (0); // TODO remove this and "hello"
+  uint32_t sequenceNumber = GetNextSequenceNumber ();
+  TRAFFIC_LOG ("Broadcasting HELLO_REQ, SequenceNumber: " << sequenceNumber);
+  Ptr<HelloRequest> helloRequest = Create<HelloRequest> (sequenceNumber, Simulator::Now(), destAddress, "hello");
+  // Add to ping-tracker
+  m_helloTracker.insert (std::make_pair (sequenceNumber, helloRequest));
+  Ptr<Packet> packet = Create<Packet> ();
+  LSMessage lsMessage = LSMessage (LSMessage::HELLO_REQ, sequenceNumber, 1, m_mainAddress);
+  lsMessage.SetHelloReq (destAddress, "hello");
+  packet->AddHeader (lsMessage);
+  BroadcastPacket (packet);
 }
 
 void
@@ -576,6 +581,10 @@ LSRoutingProtocol::AuditPings ()
 void
 LSRoutingProtocol::AuditHellos()
 {
+  //Broadcast a fresh HELLO message to immediate neighbors
+  SendHello ();
+
+
   // If "last updated" is more than helloTimeout seconds ago, remove it from the NeighborTable
   for (ntEntry i = m_neighborTable.begin (); i != m_neighborTable.end (); i++)
     {
