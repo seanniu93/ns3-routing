@@ -2,12 +2,13 @@
 
 using namespace ns3;
 
-HelloRequest::HelloRequest (uint32_t sequenceNumber, Time timestamp, Ipv4Address destinationAddress, std::string helloMessage)
+HelloRequest::HelloRequest (uint32_t sequenceNumber, Time timestamp, Ipv4Address destinationAddress, std::string helloMessage, Time timeout)
 {
   m_sequenceNumber = sequenceNumber;
   m_timestamp = timestamp;
   m_helloMessage = helloMessage;
   m_destinationAddress = destinationAddress;
+  m_timeout = timeout;
 }
 
 HelloRequest::~HelloRequest ()
@@ -36,4 +37,10 @@ Ipv4Address
 HelloRequest::GetDestinationAddress ()
 {
   return m_destinationAddress;
+}
+
+Time
+HelloRequest::GetTimeout ()
+{
+  return m_timestamp;
 }
