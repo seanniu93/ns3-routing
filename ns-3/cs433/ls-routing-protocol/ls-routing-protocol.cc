@@ -332,7 +332,7 @@ void
 LSRoutingProtocol::SendHello () {
   Ipv4Address destAddress = ResolveNodeIpAddress (0); // TODO remove this and "hello"
   uint32_t sequenceNumber = GetNextSequenceNumber ();
-  TRAFFIC_LOG ("Broadcasting HELLO_REQ, SequenceNumber: " << sequenceNumber);
+//  TRAFFIC_LOG ("Broadcasting HELLO_REQ, SequenceNumber: " << sequenceNumber);
   Ptr<HelloRequest> helloRequest = Create<HelloRequest> (sequenceNumber, Simulator::Now(), destAddress, "hello");
   // Add to ping-tracker
   m_helloTracker.insert (std::make_pair (sequenceNumber, helloRequest));
@@ -478,7 +478,7 @@ LSRoutingProtocol::ProcessHelloReq (LSMessage lsMessage, Ptr<Socket> socket)
       ERROR_LOG ("Didn't find socket in m_socketAddresses");
     }
  
-   TRAFFIC_LOG( "Received HelloReq, From Neighbor: " << fromNode << ", with Addr: " << neighAddr << ", InterfaceAddr: " << interfaceAddr << '\n');
+   //TRAFFIC_LOG( "Received HelloReq, From Neighbor: " << fromNode << ", with Addr: " << neighAddr << ", InterfaceAddr: " << interfaceAddr << '\n');
 
     ntEntry e = m_neighborTable.find( fromNode );
 
