@@ -25,7 +25,7 @@ class HelloRequest : public SimpleRefCount<HelloRequest>
     uint32_t m_sequenceNumber;
     std::string m_helloMessage;
     Ipv4Address m_destinationAddress;
-    Time timeout; //interval between HELLO broadcasts -- should be the same for all nodes in the network [cf. RFC 2328]
+    Time m_timeout; //interval between HELLO broadcasts -- should be the same for all nodes in the network [cf. RFC 2328]
 };
 
 #endif
