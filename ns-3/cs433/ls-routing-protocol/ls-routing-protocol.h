@@ -258,6 +258,7 @@ class LSRoutingProtocol : public CommRoutingProtocol
       Ipv4Address nextHopAddr;
       Ipv4Address interfaceAddr;
       uint32_t cost;
+      uint32_t sequenceNumber;
     };
 
     struct NeighborTableEntry {

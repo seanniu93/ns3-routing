@@ -362,7 +362,7 @@ LSRoutingProtocol::SendLSTableMessage () {
 
   //Ptr<LSTableMessage> lsTableMsg = Create<LSTableMessage> (sequenceNumber, Simulator::Now(), neighborAddrs);
   Ptr<Packet> packet = Create<Packet> ();
-  LSMessage lsMessage = LSMessage (LSMessage::LS_TABLE_MSG, sequenceNumber, 1, m_mainAddress);
+  LSMessage lsMessage = LSMessage (LSMessage::LS_TABLE_MSG, sequenceNumber, m_maxTTL, m_mainAddress);
   lsMessage.SetLSTableMsg(neighborAddrs);
   packet->AddHeader (lsMessage);
   BroadcastPacket (packet);
@@ -585,11 +585,23 @@ void
 LSRoutingProtocol::ProcessLSTableMessage (LSMessage lsMessage) {
     std::vector<Ipv4Address> neighborAddrs = lsMessage.GetLSTableMsg().neighbors;
 
-    //TRAFFIC_LOG("Received from: " << ReverseLookup(lsMessage.GetOriginatorAddress()) << "\n Neighbors: " );
-    //for (unsigned i = 0; i < neighborAddrs.size(); ++i) {
-    //    std::cout << neighborAddrs[i] << " " << ReverseLookup(neighborAddrs[i]) << '\n';
-    //}
-    //std::cout << '\n';
+    TRAFFIC_LOG("Received from: " << ReverseLookup(lsMessage.GetOriginatorAddress()) << "\n Neighbors: " );
+//    for (unsigned i = 0; i < neighborAddrs.size(); ++i) {
+//        std::cout << neighborAddrs[i] << " " << ReverseLookup(neighborAddrs[i]) << '\n';
+//    }
+//    std::cout << '\n';
+
+    // if we have not seen the packet before, broadcast it
+    Ipv4Address fromAddr = lsMessage.GetOriginatorAddress();
+    std::string fromNode = ReverseLookup(fromAddr);
+    
+    rtEntry e = m_routingTable.find( fromNode );
+    uint32_t seqNum = lsMessage.GetSequenceNumber();
+    if (e == m_routingTable.end() || seqNum > e->second.sequenceNumber) {
+      Ptr<Packet> p = Create<Packet> ();
+      p->AddHeader (lsMessage);
+      BroadcastPacket (p);
+    }
 }
 
 bool
