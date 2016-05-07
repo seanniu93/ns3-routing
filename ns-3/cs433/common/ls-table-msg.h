@@ -1,5 +1,5 @@
-#ifndef TESTFILE_N_
-#define TESTFILE_N_
+#ifndef LSTABLEMSG_H_
+#define LSTABLEMSG_H_
 
 #include <string>
 #include "ns3/type-name.h"
@@ -13,21 +13,19 @@ using namespace ns3;
  * two fields: one is an integer nOfNeighbors specifying the number of neighbors, and the other is an array
  * neighbors containing the Ipv4Addresses of each neighbor.
  */
-class LSTableMsg : public SimpleRefCount<LSTableMsg>
+class LSTableMessage : public SimpleRefCount<LSTableMessage>
 {
   public:
-    LSTableMsg (uint32_t sequenceNumber, Time timestamp, uint32_t nOfNeighbors, std::vector<Ipv4Address> neighbors);
-    ~LSTableMsg ();
+    LSTableMessage (uint32_t sequenceNumber, Time timestamp, std::vector<Ipv4Address> neighbors);
+    ~LSTableMessage ();
 
     Time GetTimestamp ();
     uint32_t GetSequenceNumber ();
-    uint32_t GetNOfNeighbors();
     std::vector<Ipv4Address> GetNeighbors ();
 
   private:
     Time m_timestamp;
     uint32_t m_sequenceNumber;
-    uint32_t m_nOfNeighbors;
     std::vector<Ipv4Address> m_neighbors;
 };
 
