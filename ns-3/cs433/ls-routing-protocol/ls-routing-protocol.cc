@@ -374,6 +374,7 @@ LSRoutingProtocol::DumpNeighbors ()
     {
       NeighborTableEntry entry = i->second;
       PRINT_LOG (i->first << "\t\t\t" << entry.neighborAddr << "\t\t" << entry.interfaceAddr << std::endl);
+      checkNeighborTableEntry (i->first, entry.neighborAddr, entry.interfaceAddr);
     }
 
     PRINT_LOG ("");
