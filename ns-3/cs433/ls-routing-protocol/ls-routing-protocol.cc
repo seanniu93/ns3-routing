@@ -335,13 +335,27 @@ LSRoutingProtocol::SendHello () {
 //  TRAFFIC_LOG ("Broadcasting HELLO_REQ, SequenceNumber: " << sequenceNumber);
   Ptr<HelloRequest> helloRequest = Create<HelloRequest> (sequenceNumber, Simulator::Now(), destAddress, "hello");
   // Add to ping-tracker
-  m_helloTracker.insert (std::make_pair (sequenceNumber, helloRequest));
+//  m_helloTracker.insert (std::make_pair (sequenceNumber, helloRequest));
   Ptr<Packet> packet = Create<Packet> ();
   LSMessage lsMessage = LSMessage (LSMessage::HELLO_REQ, sequenceNumber, 1, m_mainAddress);
   lsMessage.SetHelloReq (destAddress, "hello");
   packet->AddHeader (lsMessage);
   BroadcastPacket (packet);
 }
+
+void
+LSRoutingProtocol::SendLSTableMsg () {
+  uint32_t sequenceNumber = GetNextSequenceNumber ();
+  Ptr<LSTableMsg> lsTableMsg = Create<LSTableMsg> (sequenceNumber, Simulator::Now()); // TODO other arguments here?
+  Ptr<Packet> packet = Create<Packet> ();
+  LSMessage lsMessage = LSMessage (LSMessage::LSTABLE_MSG, sequenceNumber, 1, m_mainAddress);
+  // lsMessage.Set...?
+  packet->AddHeader (lsMessage);
+  BroadcastPacket (packet);
+
+}
+
+
 
 void
 LSRoutingProtocol::DumpLSA ()
