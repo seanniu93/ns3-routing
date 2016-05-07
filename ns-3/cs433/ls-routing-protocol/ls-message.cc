@@ -425,7 +425,7 @@ uint32_t
 LSMessage::LSTableMsg::GetSerializedSize (void) const
 {
   uint32_t size;
-  size = IPV4_ADDRESS_SIZE * neighbors.size();
+  size = sizeof(uint16_t) + IPV4_ADDRESS_SIZE * neighbors.size();
   return size;
 }
 
