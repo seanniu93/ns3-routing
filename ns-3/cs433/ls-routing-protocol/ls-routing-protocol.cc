@@ -531,7 +531,7 @@ LSRoutingProtocol::ProcessHelloReq (LSMessage lsMessage, Ptr<Socket> socket)
     NeighborTableEntry entry = { neighAddr, interfaceAddr , Simulator::Now() };
     m_neighborTable.insert(std::make_pair(fromNode, entry)); 
 
-    //SendLSTableMessage(); // neighbor table has changed, so resend neighbor info
+    SendLSTableMessage(); // neighbor table has changed, so resend neighbor info
   }
 
   // Send Hello Response
@@ -585,11 +585,11 @@ void
 LSRoutingProtocol::ProcessLSTableMessage (LSMessage lsMessage) {
     std::vector<Ipv4Address> neighborAddrs = lsMessage.GetLSTableMsg().neighbors;
 
-    TRAFFIC_LOG("Received from: " << ReverseLookup(lsMessage.GetOriginatorAddress()) << "\n Neighbors: " );
-    for (unsigned i = 0; i < neighborAddrs.size(); ++i) {
-        std::cout << neighborAddrs[i] << " " << ReverseLookup(neighborAddrs[i]) << '\n';
-    }
-    std::cout << '\n';
+    //TRAFFIC_LOG("Received from: " << ReverseLookup(lsMessage.GetOriginatorAddress()) << "\n Neighbors: " );
+    //for (unsigned i = 0; i < neighborAddrs.size(); ++i) {
+    //    std::cout << neighborAddrs[i] << " " << ReverseLookup(neighborAddrs[i]) << '\n';
+    //}
+    //std::cout << '\n';
 }
 
 bool
@@ -651,7 +651,7 @@ LSRoutingProtocol::AuditHellos()
   }
 
   if (sendMsg) {
-      //SendLSTableMessage(); // neighbor table info has changed, so resend neighbor info
+      SendLSTableMessage(); // neighbor table info has changed, so resend neighbor info
   }
 
   // Reschedule timer
