@@ -345,21 +345,24 @@ LSRoutingProtocol::SendHello () {
 }
 
 void
-LSRoutingProtocol::SendLSTableMsg () {
+LSRoutingProtocol::SendLSTableMessage () {
   uint32_t sequenceNumber = GetNextSequenceNumber ();
-
   uint32_t numberNeighbors = m_neighborTable.size();
+
   std::vector<Ipv4Address> neighborAddrs;
   for (ntEntry i = m_neighborTable.begin (); i != m_neighborTable.end (); i++) {
     neighborAddrs.push_back( i->second.neighborAddr );
   }
 
-  Ptr<LSTableMsg> lsTableMsg = Create<LSTableMsg> (sequenceNumber, Simulator::Now(), numberNeighbors, neighborAddrs);
+//  TRAFFIC_LOG("sequence num: " << sequenceNumber << ", " << "numNeigh: " << numberNeighbors << 
+//    ", neighborAddrs.size: " << neighborAddrs.size());
+
+  Ptr<LSTableMessage> lsTableMsg = Create<LSTableMessage> (sequenceNumber, Simulator::Now(), numberNeighbors, neighborAddrs);
   Ptr<Packet> packet = Create<Packet> ();
-  LSMessage lsMessage = LSMessage (LSMessage::LSTABLEMSG, sequenceNumber, 1, m_mainAddress);
+  //LSMessage lsMessage = LSMessage (LSMessage::LS_TABLE_MSG, sequenceNumber, 1, m_mainAddress);
   // lsMessage.Set...?
-  packet->AddHeader (lsMessage);
-  BroadcastPacket (packet);
+  //packet->AddHeader (lsMessage);
+  //BroadcastPacket (packet);
 
 }
 
@@ -385,7 +388,7 @@ LSRoutingProtocol::DumpNeighbors ()
       checkNeighborTableEntry (i->first, entry.neighborAddr, entry.interfaceAddr);
     }
 
-    PRINT_LOG ("");
+  PRINT_LOG ("");
 
 
   /*NOTE: For purpose of autograding, you should invoke the following function for each
@@ -400,6 +403,17 @@ LSRoutingProtocol::DumpRoutingTable ()
 	STATUS_LOG (std::endl << "**************** Route Table ********************" << std::endl
 			  << "DestNumber\t\tDestAddr\t\tNextHopNumber\t\tNextHopAddr\t\tInterfaceAddr\t\tCost");
 
+	for (rtEntry i = m_routingTable.begin (); i != m_routingTable.end (); i++)
+	{
+	    RoutingTableEntry entry = i->second;
+            std::string fromNode = ReverseLookup (entry.destAddr);
+
+	    PRINT_LOG (fromNode << "\t\t\t" << entry.destAddr << "\t\t\t" << entry.nextHopNum << "\t\t\t"
+	       << entry.nextHopAddr << "\t\t\t" << entry.interfaceAddr << "\t\t\t" << entry.cost << std::endl);
+
+	    checkRouteTableEntry (fromNode, entry.destAddr, entry.nextHopNum, entry.nextHopAddr, 
+	        entry.interfaceAddr, entry.cost);
+	}
 	PRINT_LOG ("");
 
 	/*NOTE: For purpose of autograding, you should invoke the following function for each
@@ -510,7 +524,7 @@ LSRoutingProtocol::ProcessHelloReq (LSMessage lsMessage, Ptr<Socket> socket)
     NeighborTableEntry entry = { neighAddr, interfaceAddr , Simulator::Now() };
     m_neighborTable.insert(std::make_pair(fromNode, entry)); 
 
-    //SendLSTableMsg(); // neighbor table has changed, so resend neighbor info
+    SendLSTableMessage(); // neighbor table has changed, so resend neighbor info
   }
 
   // Send Hello Response
@@ -606,20 +620,22 @@ LSRoutingProtocol::AuditHellos()
 {
   //Broadcast a fresh HELLO message to immediate neighbors
   SendHello ();
-
+  bool sendMsg = false;
 
   // If "last updated" is more than helloTimeout seconds ago, remove it from the NeighborTable
-  for (ntEntry i = m_neighborTable.begin (); i != m_neighborTable.end (); i++)
-    {
+  for (ntEntry i = m_neighborTable.begin (); i != m_neighborTable.end (); i++) {
       NeighborTableEntry entry = i->second;
   //    TRAFFIC_LOG ("AUDIT HELLOS: entry.lastUpdated: " << entry.lastUpdated.GetMilliSeconds() << ", timeout: " << m_helloTimeout.GetMilliSeconds() << ", time is now: " << Simulator::Now().GetMilliSeconds());
 
       if ( entry.lastUpdated.GetMilliSeconds() + m_helloTimeout.GetMilliSeconds() <= Simulator::Now().GetMilliSeconds()) {
          m_neighborTable.erase(i);
-
-         //SendLSTableMsg(); // neighbor table info has changed, so resend neighbor info
+         sendMsg = true;
       }
-    }
+  }
+
+  if (sendMsg) {
+      SendLSTableMessage(); // neighbor table info has changed, so resend neighbor info
+  }
 
   // Reschedule timer
   m_auditHellosTimer.Schedule (m_helloTimeout);
