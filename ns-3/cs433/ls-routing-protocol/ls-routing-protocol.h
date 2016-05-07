@@ -28,6 +28,7 @@
 
 #include "ns3/ping-request.h"
 #include "ns3/hello-request.h"
+#include "ns3/ls-table-msg.h"
 #include "ns3/comm-routing-protocol.h"
 #include "ns3/ls-message.h"
 
@@ -93,6 +94,7 @@ class LSRoutingProtocol : public CommRoutingProtocol
     void ProcessHelloRsp (LSMessage lsMessage, Ptr<Socket> socket);
 
     void SendHello ();
+    void SendLSTableMsg ();
 
     // Periodic Audit
     void AuditPings ();

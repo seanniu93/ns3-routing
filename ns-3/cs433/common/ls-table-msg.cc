@@ -1,9 +1,9 @@
-#include "ns3/hello-request.h"
+#include "ns3/ls-table-msg.h"
 
 using namespace ns3;
 
-    LSTableMsg (uint32_t sequenceNumber, Time timestamp,  
-      int nOfNeighbors, std::vector<Ipv4Address> neighbors);
+LSTableMsg::LSTableMsg (uint32_t sequenceNumber, Time timestamp, 
+      uint32_t nOfNeighbors, std::vector<Ipv4Address> neighbors)
 {
   m_sequenceNumber = sequenceNumber;
   m_timestamp = timestamp;

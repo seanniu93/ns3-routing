@@ -40,6 +40,9 @@ class LSMessage : public Header
         // Define extra message types when needed
         HELLO_REQ = 3,
         HELLO_RSP = 4,
+
+        LSTABLEMSG = 5,
+
       };
 
     LSMessage (LSMessage::MessageType messageType, uint32_t sequenceNumber, uint8_t ttl, Ipv4Address originatorAddress);

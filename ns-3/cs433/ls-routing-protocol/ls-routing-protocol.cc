@@ -27,6 +27,7 @@
 #include "ns3/uinteger.h"
 #include "ns3/test-result.h"
 #include <sys/time.h>
+#include <vector>
 
 using namespace ns3;
 
@@ -350,12 +351,12 @@ LSRoutingProtocol::SendLSTableMsg () {
   uint32_t numberNeighbors = m_neighborTable.size();
   std::vector<Ipv4Address> neighborAddrs;
   for (ntEntry i = m_neighborTable.begin (); i != m_neighborTable.end (); i++) {
-    neighborAddrs.pushback( i->second.neighborAddr );
+    neighborAddrs.push_back( i->second.neighborAddr );
   }
 
-  Ptr<LSTableMsg> lsTableMsg = Create<LSTableMsg> (sequenceNumber, Simulator::Now(), neighborAddrs);
+  Ptr<LSTableMsg> lsTableMsg = Create<LSTableMsg> (sequenceNumber, Simulator::Now(), numberNeighbors, neighborAddrs);
   Ptr<Packet> packet = Create<Packet> ();
-  LSMessage lsMessage = LSMessage (LSMessage::LSTABLE_MSG, sequenceNumber, 1, m_mainAddress);
+  LSMessage lsMessage = LSMessage (LSMessage::LSTABLEMSG, sequenceNumber, 1, m_mainAddress);
   // lsMessage.Set...?
   packet->AddHeader (lsMessage);
   BroadcastPacket (packet);
@@ -509,7 +510,7 @@ LSRoutingProtocol::ProcessHelloReq (LSMessage lsMessage, Ptr<Socket> socket)
     NeighborTableEntry entry = { neighAddr, interfaceAddr , Simulator::Now() };
     m_neighborTable.insert(std::make_pair(fromNode, entry)); 
 
-    SendLSTableMsg(); // neighbor table has changed, so resend neighbor info
+    //SendLSTableMsg(); // neighbor table has changed, so resend neighbor info
   }
 
   // Send Hello Response
@@ -616,7 +617,7 @@ LSRoutingProtocol::AuditHellos()
       if ( entry.lastUpdated.GetMilliSeconds() + m_helloTimeout.GetMilliSeconds() <= Simulator::Now().GetMilliSeconds()) {
          m_neighborTable.erase(i);
 
-         SendLSTableMsg(); // neighbor table info has changed, so resend neighbor info
+         //SendLSTableMsg(); // neighbor table info has changed, so resend neighbor info
       }
     }
 
