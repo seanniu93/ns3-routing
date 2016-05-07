@@ -333,7 +333,7 @@ LSRoutingProtocol::SendHello () {
   Ipv4Address destAddress = ResolveNodeIpAddress (0); // TODO remove this and "hello"
   uint32_t sequenceNumber = GetNextSequenceNumber ();
 //  TRAFFIC_LOG ("Broadcasting HELLO_REQ, SequenceNumber: " << sequenceNumber);
-  Ptr<HelloRequest> helloRequest = Create<HelloRequest> (sequenceNumber, Simulator::Now(), destAddress, "hello");
+  Ptr<HelloRequest> helloRequest = Create<HelloRequest> (sequenceNumber, Simulator::Now(), destAddress, "hello", m_helloTimeout);
   // Add to ping-tracker
 //  m_helloTracker.insert (std::make_pair (sequenceNumber, helloRequest));
   Ptr<Packet> packet = Create<Packet> ();
