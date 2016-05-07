@@ -357,12 +357,12 @@ LSRoutingProtocol::SendLSTableMessage () {
 //  TRAFFIC_LOG("sequence num: " << sequenceNumber << ", " << "numNeigh: " << numberNeighbors << 
 //    ", neighborAddrs.size: " << neighborAddrs.size());
 
-  Ptr<LSTableMessage> lsTableMsg = Create<LSTableMessage> (sequenceNumber, Simulator::Now(), numberNeighbors, neighborAddrs);
+  Ptr<LSTableMessage> lsTableMsg = Create<LSTableMessage> (sequenceNumber, Simulator::Now(), neighborAddrs);
   Ptr<Packet> packet = Create<Packet> ();
-  //LSMessage lsMessage = LSMessage (LSMessage::LS_TABLE_MSG, sequenceNumber, 1, m_mainAddress);
-  // lsMessage.Set...?
-  //packet->AddHeader (lsMessage);
-  //BroadcastPacket (packet);
+  LSMessage lsMessage = LSMessage (LSMessage::LS_TABLE_MSG, sequenceNumber, 1, m_mainAddress);
+  lsMessage.SetLSTableMsg(neighborAddrs);
+  packet->AddHeader (lsMessage);
+  BroadcastPacket (packet);
 
 }
 
@@ -444,8 +444,11 @@ LSRoutingProtocol::RecvLSMessage (Ptr<Socket> socket)
       case LSMessage::HELLO_REQ:
         ProcessHelloReq (lsMessage, socket);
         break;
-      case LSMessage::HELLO_RSP:
-        ProcessHelloRsp (lsMessage, socket);
+      //case LSMessage::HELLO_RSP:
+      //  ProcessHelloRsp (lsMessage, socket);
+      //  break;
+      case LSMessage::LS_TABLE_MSG:
+ 
         break;
       default:
         ERROR_LOG ("Unknown Message Type!");
@@ -524,7 +527,7 @@ LSRoutingProtocol::ProcessHelloReq (LSMessage lsMessage, Ptr<Socket> socket)
     NeighborTableEntry entry = { neighAddr, interfaceAddr , Simulator::Now() };
     m_neighborTable.insert(std::make_pair(fromNode, entry)); 
 
-    SendLSTableMessage(); // neighbor table has changed, so resend neighbor info
+    //SendLSTableMessage(); // neighbor table has changed, so resend neighbor info
   }
 
   // Send Hello Response
@@ -634,7 +637,7 @@ LSRoutingProtocol::AuditHellos()
   }
 
   if (sendMsg) {
-      SendLSTableMessage(); // neighbor table info has changed, so resend neighbor info
+      //SendLSTableMessage(); // neighbor table info has changed, so resend neighbor info
   }
 
   // Reschedule timer

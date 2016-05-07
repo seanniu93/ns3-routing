@@ -21,6 +21,8 @@
 #include "ns3/ipv4-address.h"
 #include "ns3/packet.h"
 #include "ns3/object.h"
+#include "ns3/nstime.h"
+#include <vector>
 
 using namespace ns3;
 
@@ -173,7 +175,7 @@ class LSMessage : public Header
         PingReq pingReq;
         PingRsp pingRsp;
         HelloReq helloReq;
-        HelloRsp helloRsp;
+        //HelloRsp helloRsp;
         LSTableMsg lsTableMsg;
       } m_message;
     
@@ -215,7 +217,7 @@ class LSMessage : public Header
     /* LS Table Msg */
     LSTableMsg GetLSTableMsg ();
 
-    void SetLSTableMsg (std::vector<Ipv4Address> neighbors;);
+    void SetLSTableMsg (std::vector<Ipv4Address> neighbors);
 
 }; // class LSMessage
 

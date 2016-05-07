@@ -433,22 +433,21 @@ void
 LSMessage::LSTableMsg::Print (std::ostream &os) const
 {
   os << "LSTableMsg:: Neighbors: ";
-  for(std::vector<Ipv4Address>::iterator it = neighbors.begin(); it != neighbors.end(); ++it) {
-    if (it == neighbors.end())
-      os << *it << "\n";
-    else
-      os << *it << ", ";
+  for(unsigned i = 0; i < neighbors.size(); i++) {
+      os << neighbors[i] << ", ";
   } 
+  os << "\b\b\n";
+
+  
 }
 
 void
 LSMessage::LSTableMsg::Serialize (Buffer::Iterator &start) const
 {
   start.WriteU16 (neighbors.size ());
-  for(std::vector<Ipv4Address>::iterator it = neighbors.begin(); it != neighbors.end(); ++it) {
-    start.WriteHtonU32 (it->Get ());
+  for(unsigned i = 0; i < neighbors.size(); i++) {
+    start.WriteHtonU32 (neighbors[i].Get ());
   }
-
 }
 
 uint32_t
@@ -456,9 +455,9 @@ LSMessage::LSTableMsg::Deserialize (Buffer::Iterator &start)
 {
   
   uint16_t nOfNeighbors = start.ReadU16 ();
+  
   for (unsigned i = 0; i < nOfNeighbors; i++) {
-    neighborAddress = Ipv4Address (start.ReadNtohU32 ());
-    neighbors.push_back( neighborAddress );
+    neighbors.push_back( Ipv4Address (start.ReadNtohU32 ()) );
   }
   return LSTableMsg::GetSerializedSize ();
 }
