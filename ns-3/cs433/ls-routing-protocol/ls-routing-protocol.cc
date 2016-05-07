@@ -346,7 +346,14 @@ LSRoutingProtocol::SendHello () {
 void
 LSRoutingProtocol::SendLSTableMsg () {
   uint32_t sequenceNumber = GetNextSequenceNumber ();
-  Ptr<LSTableMsg> lsTableMsg = Create<LSTableMsg> (sequenceNumber, Simulator::Now()); // TODO other arguments here?
+
+  uint32_t numberNeighbors = m_neighborTable.size();
+  std::vector<Ipv4Address> neighborAddrs;
+  for (ntEntry i = m_neighborTable.begin (); i != m_neighborTable.end (); i++) {
+    neighborAddrs.pushback( i->second.neighborAddr );
+  }
+
+  Ptr<LSTableMsg> lsTableMsg = Create<LSTableMsg> (sequenceNumber, Simulator::Now(), neighborAddrs);
   Ptr<Packet> packet = Create<Packet> ();
   LSMessage lsMessage = LSMessage (LSMessage::LSTABLE_MSG, sequenceNumber, 1, m_mainAddress);
   // lsMessage.Set...?
@@ -494,16 +501,16 @@ LSRoutingProtocol::ProcessHelloReq (LSMessage lsMessage, Ptr<Socket> socket)
  
    //TRAFFIC_LOG( "Received HelloReq, From Neighbor: " << fromNode << ", with Addr: " << neighAddr << ", InterfaceAddr: " << interfaceAddr << '\n');
 
-    ntEntry e = m_neighborTable.find( fromNode );
+  ntEntry e = m_neighborTable.find( fromNode );
 
-    if ( e != m_neighborTable.end() ) {
-      e->second.lastUpdated = Simulator::Now();
-    } else {
-      NeighborTableEntry entry = { neighAddr, interfaceAddr , Simulator::Now()};
-      m_neighborTable.insert(std::make_pair(fromNode, entry)); 
-    }
+  if ( e != m_neighborTable.end() ) {
+    e->second.lastUpdated = Simulator::Now();
+  } else {
+    NeighborTableEntry entry = { neighAddr, interfaceAddr , Simulator::Now() };
+    m_neighborTable.insert(std::make_pair(fromNode, entry)); 
 
-
+    SendLSTableMsg(); // neighbor table has changed, so resend neighbor info
+  }
 
   // Send Hello Response
 //  LSMessage lsResp = LSMessage (LSMessage::HELLO_RSP, lsMessage.GetSequenceNumber(), 1, m_mainAddress);
@@ -608,6 +615,8 @@ LSRoutingProtocol::AuditHellos()
 
       if ( entry.lastUpdated.GetMilliSeconds() + m_helloTimeout.GetMilliSeconds() <= Simulator::Now().GetMilliSeconds()) {
          m_neighborTable.erase(i);
+
+         SendLSTableMsg(); // neighbor table info has changed, so resend neighbor info
       }
     }
 
