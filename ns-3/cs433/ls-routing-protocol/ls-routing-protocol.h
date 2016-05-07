@@ -92,6 +92,7 @@ class LSRoutingProtocol : public CommRoutingProtocol
     void ProcessPingRsp (LSMessage lsMessage);
     void ProcessHelloReq (LSMessage lsMessage, Ptr<Socket> socket);
     void ProcessHelloRsp (LSMessage lsMessage, Ptr<Socket> socket);
+    void ProcessLSTableMessage (LSMessage lsMessage);
 
     void SendHello ();
     void SendLSTableMessage ();

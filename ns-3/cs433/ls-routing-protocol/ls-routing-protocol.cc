@@ -451,7 +451,8 @@ LSRoutingProtocol::RecvLSMessage (Ptr<Socket> socket)
       //  ProcessHelloRsp (lsMessage, socket);
       //  break;
       case LSMessage::LS_TABLE_MSG:
- 
+        ProcessLSTableMessage(lsMessage);
+        //TRAFFIC_LOG( "SourceAddr: " << sourceAddress << '\n');
         break;
       default:
         ERROR_LOG ("Unknown Message Type!");
@@ -580,6 +581,16 @@ LSRoutingProtocol::ProcessHelloRsp (LSMessage lsMessage, Ptr<Socket> socket)
   //   }
 }
 
+void
+LSRoutingProtocol::ProcessLSTableMessage (LSMessage lsMessage) {
+    std::vector<Ipv4Address> neighborAddrs = lsMessage.GetLSTableMsg().neighbors;
+
+    TRAFFIC_LOG("Received from: " << ReverseLookup(lsMessage.GetOriginatorAddress()) << "\n Neighbors: " );
+    for (unsigned i = 0; i < neighborAddrs.size(); ++i) {
+        std::cout << neighborAddrs[i] << " " << ReverseLookup(neighborAddrs[i]) << '\n';
+    }
+    std::cout << '\n';
+}
 
 bool
 LSRoutingProtocol::IsOwnAddress (Ipv4Address originatorAddress)
