@@ -327,6 +327,11 @@ LSRoutingProtocol::ProcessCommand (std::vector<std::string> tokens)
     {
     	SendHello ();
     }
+
+  else if (command == "LSTABLEMSG")
+    {
+      SendLSTableMessage ();
+    }
 }
 
 void
@@ -334,8 +339,8 @@ LSRoutingProtocol::SendHello () {
   Ipv4Address destAddress = ResolveNodeIpAddress (0); // TODO remove this and "hello"
   uint32_t sequenceNumber = GetNextSequenceNumber ();
 //  TRAFFIC_LOG ("Broadcasting HELLO_REQ, SequenceNumber: " << sequenceNumber);
-  Ptr<HelloRequest> helloRequest = Create<HelloRequest> (sequenceNumber, Simulator::Now(), destAddress, "hello", m_helloTimeout);
-  // Add to ping-tracker
+  //Ptr<HelloRequest> helloRequest = Create<HelloRequest> (sequenceNumber, Simulator::Now(), destAddress, "hello", m_helloTimeout);
+  // Add to hello-tracker
 //  m_helloTracker.insert (std::make_pair (sequenceNumber, helloRequest));
   Ptr<Packet> packet = Create<Packet> ();
   LSMessage lsMessage = LSMessage (LSMessage::HELLO_REQ, sequenceNumber, 1, m_mainAddress);
@@ -347,17 +352,15 @@ LSRoutingProtocol::SendHello () {
 void
 LSRoutingProtocol::SendLSTableMessage () {
   uint32_t sequenceNumber = GetNextSequenceNumber ();
-  uint32_t numberNeighbors = m_neighborTable.size();
 
   std::vector<Ipv4Address> neighborAddrs;
   for (ntEntry i = m_neighborTable.begin (); i != m_neighborTable.end (); i++) {
     neighborAddrs.push_back( i->second.neighborAddr );
   }
 
-//  TRAFFIC_LOG("sequence num: " << sequenceNumber << ", " << "numNeigh: " << numberNeighbors << 
-//    ", neighborAddrs.size: " << neighborAddrs.size());
+//  TRAFFIC_LOG("sequence num: " << sequenceNumber << ", neighborAddrs.size: " << neighborAddrs.size());
 
-  Ptr<LSTableMessage> lsTableMsg = Create<LSTableMessage> (sequenceNumber, Simulator::Now(), neighborAddrs);
+  //Ptr<LSTableMessage> lsTableMsg = Create<LSTableMessage> (sequenceNumber, Simulator::Now(), neighborAddrs);
   Ptr<Packet> packet = Create<Packet> ();
   LSMessage lsMessage = LSMessage (LSMessage::LS_TABLE_MSG, sequenceNumber, 1, m_mainAddress);
   lsMessage.SetLSTableMsg(neighborAddrs);
