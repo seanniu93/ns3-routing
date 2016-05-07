@@ -39,9 +39,10 @@ class LSMessage : public Header
         PING_RSP = 2,
         // Define extra message types when needed
         HELLO_REQ = 3,
-        HELLO_RSP = 4,
 
-        LSTABLEMSG = 5,
+        //HELLO_RSP = 4,
+
+        LS_TABLE_MSG = 4,
 
       };
 
@@ -142,8 +143,9 @@ class LSMessage : public Header
         // Payload
         Ipv4Address destinationAddress;
         std::string helloMessage;
+        Time timeout;
       };
-
+/* We are not using this message anymore for now
     struct HelloRsp
       {
         void Print (std::ostream &os) const;
@@ -154,6 +156,16 @@ class LSMessage : public Header
         Ipv4Address destinationAddress;
         std::string helloMessage;
       };
+*/
+    struct LSTableMsg
+      {
+        void Print (std::ostream &os) const;
+        uint32_t GetSerializedSize (void) const;
+        void Serialize (Buffer::Iterator &start) const;
+        uint32_t Deserialize (Buffer::Iterator &start);
+        // Payload
+        std::vector<Ipv4Address> neighbors;
+      };
 
   private:
     struct
@@ -162,6 +174,7 @@ class LSMessage : public Header
         PingRsp pingRsp;
         HelloReq helloReq;
         HelloRsp helloRsp;
+        LSTableMsg lsTableMsg;
       } m_message;
     
   public:
@@ -187,14 +200,22 @@ class LSMessage : public Header
      */
     void SetPingRsp (Ipv4Address destinationAddress, std::string message);
 
-    /* Hello Req and Rsp */
+    /* Hello Req */
     HelloReq GetHelloReq ();
 
     void SetHelloReq (Ipv4Address destinationAddress, std::string message);
 
+    /* Hello Rsp */
+    /*
     HelloRsp GetHelloRsp ();
 
     void SetHelloRsp (Ipv4Address destinationAddress, std::string message);
+    */
+
+    /* LS Table Msg */
+    LSTableMsg GetLSTableMsg ();
+
+    void SetLSTableMsg (std::vector<Ipv4Address> neighbors;);
 
 }; // class LSMessage
 

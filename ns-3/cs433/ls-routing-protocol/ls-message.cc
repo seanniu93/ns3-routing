@@ -71,8 +71,13 @@ LSMessage::GetSerializedSize (void) const
       case HELLO_REQ:
         size += m_message.helloReq.GetSerializedSize ();
         break;
+      /*
       case HELLO_RSP:
         size += m_message.helloRsp.GetSerializedSize ();
+        break;
+      */
+      case LS_TABLE_MSG:
+        size += m_message.lsTableMsg.GetSerializedSize ();
         break;
       default:
         NS_ASSERT (false);
@@ -101,9 +106,13 @@ LSMessage::Print (std::ostream &os) const
       case HELLO_REQ:
         m_message.helloReq.Print (os);
         break;
+      /*
       case HELLO_RSP:
         m_message.helloRsp.Print (os);
         break;
+      */
+      case LS_TABLE_MSG:
+        m_message.lsTableMsg.Print (os);
       default:
         break;  
     }
@@ -130,8 +139,13 @@ LSMessage::Serialize (Buffer::Iterator start) const
       case HELLO_REQ:
         m_message.helloReq.Serialize (i);
         break;
+      /*
       case HELLO_RSP:
         m_message.helloRsp.Serialize (i);
+        break;
+      */
+      case LS_TABLE_MSG:
+        m_message.lsTableMsg.Serialize (i);
         break;
       default:
         NS_ASSERT (false);   
@@ -161,8 +175,13 @@ LSMessage::Deserialize (Buffer::Iterator start)
       case HELLO_REQ:
         size += m_message.helloReq.Deserialize (i);
         break;
+      /*
       case HELLO_RSP:
         size += m_message.helloRsp.Deserialize (i);
+        break;
+      */
+      case LS_TABLE_MSG:
+        m_message.lsTableMsg.Deserialize (i);
         break;
       default:
         NS_ASSERT (false);
@@ -342,6 +361,7 @@ LSMessage::GetHelloReq ()
 }
 
 /* HELLO_RSP */
+/*
 
 uint32_t
 LSMessage::HelloRsp::GetSerializedSize (void) const
@@ -396,6 +416,71 @@ LSMessage::HelloRsp
 LSMessage::GetHelloRsp ()
 {
   return m_message.helloRsp;
+}
+*/
+
+/* LS_TABLE_MSG */
+
+uint32_t
+LSMessage::LSTableMsg::GetSerializedSize (void) const
+{
+  uint32_t size;
+  size = IPV4_ADDRESS_SIZE * neighbors.size();
+  return size;
+}
+
+void
+LSMessage::LSTableMsg::Print (std::ostream &os) const
+{
+  os << "LSTableMsg:: Neighbors: ";
+  for(std::vector<Ipv4Address>::iterator it = neighbors.begin(); it != neighbors.end(); ++it) {
+    if (it == neighbors.end())
+      os << *it << "\n";
+    else
+      os << *it << ", ";
+  } 
+}
+
+void
+LSMessage::LSTableMsg::Serialize (Buffer::Iterator &start) const
+{
+  start.WriteU16 (neighbors.size ());
+  for(std::vector<Ipv4Address>::iterator it = neighbors.begin(); it != neighbors.end(); ++it) {
+    start.WriteHtonU32 (it->Get ());
+  }
+
+}
+
+uint32_t
+LSMessage::LSTableMsg::Deserialize (Buffer::Iterator &start)
+{
+  
+  uint16_t nOfNeighbors = start.ReadU16 ();
+  for (unsigned i = 0; i < nOfNeighbors; i++) {
+    neighborAddress = Ipv4Address (start.ReadNtohU32 ());
+    neighbors.push_back( neighborAddress );
+  }
+  return LSTableMsg::GetSerializedSize ();
+}
+
+void
+LSMessage::SetLSTableMsg (std::vector<Ipv4Address> neighbors)
+{
+  if (m_messageType == 0)
+    {
+      m_messageType = LS_TABLE_MSG;
+    }
+  else
+    {
+      NS_ASSERT (m_messageType == LS_TABLE_MSG);
+    }
+  m_message.lsTableMsg.neighbors = neighbors;
+}
+
+LSMessage::LSTableMsg
+LSMessage::GetLSTableMsg ()
+{
+  return m_message.lsTableMsg;
 }
 
 //
