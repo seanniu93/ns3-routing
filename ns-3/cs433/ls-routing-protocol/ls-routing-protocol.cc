@@ -584,6 +584,7 @@ LSRoutingProtocol::ProcessHelloRsp (LSMessage lsMessage, Ptr<Socket> socket)
 void
 LSRoutingProtocol::ProcessLSTableMessage (LSMessage lsMessage) {
     std::vector<Ipv4Address> neighborAddrs = lsMessage.GetLSTableMsg().neighbors;
+    uint32_t seqNum = lsMessage.GetSequenceNumber();
 
     TRAFFIC_LOG("Received from: " << ReverseLookup(lsMessage.GetOriginatorAddress()) << "\n Neighbors: " );
 //    for (unsigned i = 0; i < neighborAddrs.size(); ++i) {
@@ -594,10 +595,22 @@ LSRoutingProtocol::ProcessLSTableMessage (LSMessage lsMessage) {
     // if we have not seen the packet before, broadcast it
     Ipv4Address fromAddr = lsMessage.GetOriginatorAddress();
     std::string fromNode = ReverseLookup(fromAddr);
-    
-    rtEntry e = m_routingTable.find( fromNode );
-    uint32_t seqNum = lsMessage.GetSequenceNumber();
-    if (e == m_routingTable.end() || seqNum > e->second.sequenceNumber) {
+
+    lstEntry entry = m_lsTable.find(fromNode);
+    if (entry == m_lsTable.end() || seqNum > entry->second.sequenceNumber) {
+      // Add to LSTable
+      std::vector<std::pair<Ipv4Address, uint32_t> > neighborCosts;
+      for (int i = 0; i < neighborAddrs.size(); i++) {
+        std::pair<Ipv4Address, uint32_t> newPair(neighborAddrs[i], 1); // TODO real cost for bonus
+        neighborCosts.push_back(newPair);
+      }
+      LSTableEntry newEntry = { neighborCosts, entry->second.sequenceNumber };
+      m_lsTable.insert(std::pair<std::string, LSTableEntry>(fromNode, newEntry));
+
+      // Run Dijstra
+
+
+      // Send Packet
       Ptr<Packet> p = Create<Packet> ();
       p->AddHeader (lsMessage);
       BroadcastPacket (p);

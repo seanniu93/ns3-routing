@@ -258,7 +258,7 @@ class LSRoutingProtocol : public CommRoutingProtocol
       Ipv4Address nextHopAddr;
       Ipv4Address interfaceAddr;
       uint32_t cost;
-      uint32_t sequenceNumber;
+      // uint32_t sequenceNumber;
     };
 
     struct NeighborTableEntry {
@@ -267,14 +267,20 @@ class LSRoutingProtocol : public CommRoutingProtocol
       Time lastUpdated;
     };
 
+    struct LSTableEntry {
+      std::vector<std::pair<Ipv4Address, uint32_t> > neighborCosts;
+      uint32_t sequenceNumber;
+      // uint32_t ttl;
+    };
+
     std::map<std::string, NeighborTableEntry> m_neighborTable;
     std::map<std::string, RoutingTableEntry> m_routingTable;
+    std::map<std::string, LSTableEntry> m_lsTable;
 
-    //defining iterator types for both our table maps
+    //defining iterator types for our table maps
     typedef std::map<std::string, NeighborTableEntry>::iterator ntEntry;
     typedef std::map<std::string, RoutingTableEntry>::iterator rtEntry;
-
-
+    typedef std::map<std::string, LSTableEntry>::iterator lstEntry;
 };
 
 #endif
