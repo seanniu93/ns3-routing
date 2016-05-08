@@ -601,8 +601,7 @@ LSRoutingProtocol::ProcessLSTableMessage (LSMessage lsMessage) {
       // Add to LSTable
       std::vector<std::pair<Ipv4Address, uint32_t> > neighborCosts;
       for (int i = 0; i < neighborAddrs.size(); i++) {
-        std::pair<Ipv4Address, uint32_t> newPair(neighborAddrs[i], 1); // TODO real cost for bonus
-        neighborCosts.push_back(newPair);
+        neighborCosts.push_back(std::make_pair(neighborAddrs[i], 1));
       }
       LSTableEntry newEntry = { neighborCosts, entry->second.sequenceNumber };
       m_lsTable.insert(std::pair<std::string, LSTableEntry>(fromNode, newEntry));
