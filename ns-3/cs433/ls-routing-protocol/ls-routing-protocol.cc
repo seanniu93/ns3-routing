@@ -28,6 +28,7 @@
 #include "ns3/test-result.h"
 #include <sys/time.h>
 #include <vector>
+#include <limits>
 
 using namespace ns3;
 
@@ -668,7 +669,8 @@ LSRoutingProtocol::AuditHellos()
       NeighborTableEntry entry = i->second;
   //    TRAFFIC_LOG ("AUDIT HELLOS: entry.lastUpdated: " << entry.lastUpdated.GetMilliSeconds() << ", timeout: " << m_helloTimeout.GetMilliSeconds() << ", time is now: " << Simulator::Now().GetMilliSeconds());
 
-      if ( entry.lastUpdated.GetMilliSeconds() + m_helloTimeout.GetMilliSeconds() <= Simulator::Now().GetMilliSeconds()) {
+  if ( entry.lastUpdated.GetMilliSeconds() + m_helloTimeout.GetMilliSeconds() <= Simulator::Now().GetMilliSeconds()) {
+         removeLSTableLink( m_mainAddress, entry.neighborAddr );
          m_neighborTable.erase(i);
          sendMsg = true;
       }
@@ -681,6 +683,66 @@ LSRoutingProtocol::AuditHellos()
   // Reschedule timer
   m_auditHellosTimer.Schedule (m_helloTimeout);
 
+}
+
+uint32_t
+LSRoutingProtocol::distance(std::string node1, std::string node2) {
+    if (node1 == node2) {
+        return 0;
+    }
+
+    lstEntry entry = m_lsTable.find(node1);
+
+    std::vector<std::pair<Ipv4Address, uint32_t> > pairs = entry->second.neighborCosts;
+    for (unsigned i = 0; i < pairs.size(); i++) {
+        if (ReverseLookup(pairs[i].first) == node2) {
+            return pairs[i].second;
+        }
+    }
+
+    return std::numeric_limits<int>::max();
+}
+
+void
+LSRoutingProtocol::removeLSTableLink(Ipv4Address node1, Ipv4Address node2) {
+    lstEntry entry1 = m_lsTable.find( ReverseLookup(node1) );
+    lstEntry entry2 = m_lsTable.find( ReverseLookup(node2) );
+
+    if (entry1 != m_lsTable.end()) {
+        std::vector<std::pair<Ipv4Address, uint32_t> > pairs1 = entry1->second.neighborCosts;
+        for (unsigned i = 0; i < pairs1.size(); i++) {
+            if (pairs1[i].first == node2) {
+                pairs1.erase(pairs1.begin() + i);
+            }
+        }
+    }
+
+    if (entry2 != m_lsTable.end()) {
+        std::vector<std::pair<Ipv4Address, uint32_t> > pairs2 = entry2->second.neighborCosts;
+        for (unsigned i = 0; i < pairs2.size(); i++) {
+            if (pairs2[i].first == node1) {
+                pairs2.erase(pairs2.begin() + i);
+            }
+        }
+    }
+}
+
+
+std::vector<Ipv4Address>
+LSRoutingProtocol::get_neighbors(std::string node) {
+    std::vector<Ipv4Address> neighAddrs;
+    lstEntry entry = m_lsTable.find(node);
+    // check if does not exist, return NULL
+    if (entry == m_lsTable.end()) {
+        return neighAddrs;
+    }
+
+    std::vector<std::pair<Ipv4Address, uint32_t> > pairs = entry->second.neighborCosts;
+        
+    for (unsigned i = 0; i < pairs.size(); i++) {
+        neighAddrs.push_back(pairs[i].first);
+    }
+    return neighAddrs;
 }
 
 

@@ -232,6 +232,9 @@ class LSRoutingProtocol : public CommRoutingProtocol
      */
     bool IsOwnAddress (Ipv4Address originatorAddress);
 
+    std::vector<Ipv4Address> get_neighbors(std::string node);
+    uint32_t distance(std::string node1, std::string node2);
+    void removeLSTableLink(Ipv4Address node1, Ipv4Address node2);
 
   private:
     std::map< Ptr<Socket>, Ipv4InterfaceAddress > m_socketAddresses;
