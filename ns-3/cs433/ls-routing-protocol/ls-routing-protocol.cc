@@ -622,10 +622,15 @@ LSRoutingProtocol::ProcessLSTableMessage (LSMessage lsMessage) {
 
     lstEntry entry = m_lsTable.find(fromNode);
     if (entry == m_lsTable.end() || seqNum > entry->second.sequenceNumber) {
+
+      //if it was already in the table, delete it first
+      if (entry != m_lsTable.end())
+        m_lsTable.erase(entry);
+
       // Add to LSTable
       std::vector<std::pair<Ipv4Address, uint32_t> > neighborCosts;
       for (int i = 0; i < neighborAddrs.size(); i++) {
-        neighborCosts.push_back(std::make_pair(neighborAddrs[i], 1));
+        neighborCosts.push_back(std::make_pair(neighborAddrs[i], 1)); //TODO: change cost here
       }
       LSTableEntry newEntry = { neighborCosts, entry->second.sequenceNumber };
       m_lsTable.insert(std::pair<std::string, LSTableEntry>(fromNode, newEntry));
