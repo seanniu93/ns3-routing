@@ -53,7 +53,7 @@ LSRoutingProtocol::GetTypeId (void)
                  MakeTimeChecker ())
   .AddAttribute ("HelloTimeout",
                  "Timeout value for HELLO in milliseconds",
-                 TimeValue (MilliSeconds (3000)),
+                 TimeValue (MilliSeconds (6000)),
                  MakeTimeAccessor (&LSRoutingProtocol::m_helloTimeout),
                  MakeTimeChecker ())
   .AddAttribute ("MaxTTL",
@@ -149,7 +149,7 @@ void
 LSRoutingProtocol::DoStart ()
 {
 
-  std::cout << m_ipv4->GetNInterfaces() << '\n';
+//  std::cout << m_ipv4->GetNInterfaces() << '\n';
 
   // Create sockets
   for (uint32_t i = 0 ; i < m_ipv4->GetNInterfaces () ; i++)
@@ -174,7 +174,7 @@ LSRoutingProtocol::DoStart ()
       socket->BindToNetDevice (netDevice);
       m_socketAddresses[socket] = m_ipv4->GetAddress (i, 0);
 
-      std::cout << i << ", " << ipAddress << ", " << socket << ", " << inetAddr << ", " << m_ipv4->GetAddress(i, 0) << '\n';
+//      std::cout << i << ", " << ipAddress << ", " << socket << ", " << inetAddr << ", " << m_ipv4->GetAddress(i, 0) << '\n';
 
 
     }
@@ -321,7 +321,7 @@ LSRoutingProtocol::ProcessCommand (std::vector<std::string> tokens)
         }
       else if (table == "LSA")
         {
-          DumpLSA ();
+          DumpLSTable ();
         }
     }
   else if (command == "HELLO")
@@ -359,7 +359,7 @@ LSRoutingProtocol::SendLSTableMessage () {
     neighborAddrs.push_back( i->second.neighborAddr );
   }
 
-//  TRAFFIC_LOG("sequence num: " << sequenceNumber << ", neighborAddrs.size: " << neighborAddrs.size());
+  TRAFFIC_LOG("Sending LSTableMessage: sequence num: " << sequenceNumber << ", neighborAddrs.size: " << neighborAddrs.size());
 
   //Ptr<LSTableMessage> lsTableMsg = Create<LSTableMessage> (sequenceNumber, Simulator::Now(), neighborAddrs);
   Ptr<Packet> packet = Create<Packet> ();
@@ -644,8 +644,10 @@ LSRoutingProtocol::ProcessLSTableMessage (LSMessage lsMessage) {
     std::string fromNode = ReverseLookup(fromAddr);
 
     lstEntry entry = m_lsTable.find(fromNode);
-    if (entry == m_lsTable.end() || seqNum > entry->second.sequenceNumber) {
 
+    TRAFFIC_LOG("Sequence Number of this entry: " << entry->second.sequenceNumber << " SeqNum of new packet: " << seqNum);
+    if (entry == m_lsTable.end() || seqNum > entry->second.sequenceNumber) {
+      std::cout << "Sequence Number is new.\n";
       //if it was already in the table, delete it first
       if (entry != m_lsTable.end())
         m_lsTable.erase(entry);
@@ -655,13 +657,13 @@ LSRoutingProtocol::ProcessLSTableMessage (LSMessage lsMessage) {
       for (int i = 0; i < neighborAddrs.size(); i++) {
         neighborCosts.push_back(std::make_pair(neighborAddrs[i], 1)); // TODO: change cost here
       }
-      LSTableEntry newEntry = { neighborCosts, entry->second.sequenceNumber };
+      LSTableEntry newEntry = { neighborCosts, seqNum };
       m_lsTable.insert(std::pair<std::string, LSTableEntry>(fromNode, newEntry));
 
       DumpLSTable();
       // Run Dijkstra
       Dijkstra();
-      //DumpRoutingTable();
+      DumpLSTable();
 
       // Send Packet
       Ptr<Packet> p = Create<Packet> ();
