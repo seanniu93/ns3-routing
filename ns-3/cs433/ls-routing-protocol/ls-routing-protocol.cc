@@ -405,15 +405,15 @@ void
 LSRoutingProtocol::DumpRoutingTable ()
 {
 	STATUS_LOG (std::endl << "**************** Route Table ********************" << std::endl
-			  << "DestNumber\t\tDestAddr\t\tNextHopNumber\t\tNextHopAddr\t\tInterfaceAddr\t\tCost");
+			  << "DestNumber\tDestAddr\t\tNextHopNumber\t\tNextHopAddr\t\tInterfaceAddr\t\tCost");
 
 	for (rtEntry i = m_routingTable.begin (); i != m_routingTable.end (); i++)
 	{
 	    RoutingTableEntry entry = i->second;
             std::string fromNode = ReverseLookup (entry.destAddr);
 
-	    PRINT_LOG (fromNode << "\t\t\t" << entry.destAddr << "\t\t\t" << entry.nextHopNum << "\t\t\t"
-	       << entry.nextHopAddr << "\t\t\t" << entry.interfaceAddr << "\t\t\t" << entry.cost << std::endl);
+	    PRINT_LOG (fromNode << "\t\t" << entry.destAddr << "\t\t" << entry.nextHopNum << "\t\t"
+	       << entry.nextHopAddr << "\t\t" << entry.interfaceAddr << "\t\t\t" << entry.cost << std::endl);
 
 	    checkRouteTableEntry (fromNode, entry.destAddr, entry.nextHopNum, entry.nextHopAddr, 
 	        entry.interfaceAddr, entry.cost);
@@ -425,6 +425,26 @@ LSRoutingProtocol::DumpRoutingTable ()
 	*/
 	//checkRouteTableEntry();
 }
+
+void
+LSRoutingProtocol::DumpLSTable ()
+{
+	STATUS_LOG (std::endl << "**************** LS Table ********************" << std::endl)
+
+	for (lstEntry i = m_lsTable.begin (); i != m_lsTable.end (); i++)
+	{
+	    LSTableEntry entry = i->second;
+            std::cout << "\nNode " << i->first << '\n';
+            std::vector<std::pair<Ipv4Address, uint32_t> > nc = entry.neighborCosts;
+            for (int i = 0; i < nc.size(); i++) {
+                std::cout << ReverseLookup(nc[i].first) << " " << nc[i].second << '\n';
+            }
+	}
+	PRINT_LOG ("");
+}
+
+
+
 void
 LSRoutingProtocol::RecvLSMessage (Ptr<Socket> socket)
 {
@@ -554,6 +574,8 @@ LSRoutingProtocol::ProcessHelloReq (LSMessage lsMessage, Ptr<Socket> socket)
     //run Dijkstra to update costs
     Dijkstra();
 
+    //DumpRoutingTable();
+
     SendLSTableMessage(); // neighbor table has changed, so resend neighbor info
   }
 
@@ -612,10 +634,10 @@ LSRoutingProtocol::ProcessLSTableMessage (LSMessage lsMessage) {
     uint32_t seqNum = lsMessage.GetSequenceNumber();
 
     TRAFFIC_LOG("Received from: " << ReverseLookup(lsMessage.GetOriginatorAddress()) << "\n Neighbors: " );
-//    for (unsigned i = 0; i < neighborAddrs.size(); ++i) {
-//        std::cout << neighborAddrs[i] << " " << ReverseLookup(neighborAddrs[i]) << '\n';
-//    }
-//    std::cout << '\n';
+    for (unsigned i = 0; i < neighborAddrs.size(); ++i) {
+        std::cout << neighborAddrs[i] << " " << ReverseLookup(neighborAddrs[i]) << '\n';
+    }
+    std::cout << '\n';
 
     // if we have not seen the packet before, broadcast it
     Ipv4Address fromAddr = lsMessage.GetOriginatorAddress();
@@ -626,14 +648,15 @@ LSRoutingProtocol::ProcessLSTableMessage (LSMessage lsMessage) {
       // Add to LSTable
       std::vector<std::pair<Ipv4Address, uint32_t> > neighborCosts;
       for (int i = 0; i < neighborAddrs.size(); i++) {
-        neighborCosts.push_back(std::make_pair(neighborAddrs[i], 1));
+        neighborCosts.push_back(std::make_pair(neighborAddrs[i], 1)); // TODO: change cost here
       }
       LSTableEntry newEntry = { neighborCosts, entry->second.sequenceNumber };
       m_lsTable.insert(std::pair<std::string, LSTableEntry>(fromNode, newEntry));
 
-      // Run Dijstra
+      DumpLSTable();
+      // Run Dijkstra
       Dijkstra();
-
+      //DumpRoutingTable();
 
       // Send Packet
       Ptr<Packet> p = Create<Packet> ();
@@ -811,15 +834,16 @@ LSRoutingProtocol::Dijkstra() {
   GetNeighbors(thisNode, neighbors);
 
   //PRINT OUT
-  std::cout << "My own neighbors: ";
-  for (int i = 0; i < neighbors.size(); i++) {
-    std::cout << neighbors[i] << ", ";
-  }
-  std::cout << "\b\b\n";
+  //std::cout << "My own neighbors: ";
+  //for (int i = 0; i < neighbors.size(); i++) {
+  //  std::cout << neighbors[i] << ", ";
+ // }
+  //std::cout << "\b\b\n";
 
   //insert this node into the routing table
-  RoutingTableEntry entry = { m_mainAddress, m_mainAddress.Get(), NULL,
-    NULL, 0}; 
+  RoutingTableEntry entry = { m_mainAddress, m_mainAddress.Get(), m_mainAddress,
+    m_mainAddress, 0}; 
+  m_routingTable.insert(std::make_pair(thisNode, entry));
 
   for (int i = 0; i < neighbors.size(); i++) {
     Ipv4Address nbr = neighbors[i];

@@ -223,6 +223,7 @@ class LSRoutingProtocol : public CommRoutingProtocol
     void DumpLSA ();
     void DumpNeighbors ();
     void DumpRoutingTable ();
+    void DumpLSTable();
 
   protected:
     virtual void DoStart (void);
