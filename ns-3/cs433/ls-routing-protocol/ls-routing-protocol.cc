@@ -685,24 +685,6 @@ LSRoutingProtocol::AuditHellos()
 
 }
 
-uint32_t
-LSRoutingProtocol::distance(std::string node1, std::string node2) {
-    if (node1 == node2) {
-        return 0;
-    }
-
-    lstEntry entry = m_lsTable.find(node1);
-
-    std::vector<std::pair<Ipv4Address, uint32_t> > pairs = entry->second.neighborCosts;
-    for (unsigned i = 0; i < pairs.size(); i++) {
-        if (ReverseLookup(pairs[i].first) == node2) {
-            return pairs[i].second;
-        }
-    }
-
-    return std::numeric_limits<int>::max();
-}
-
 void
 LSRoutingProtocol::removeLSTableLink(Ipv4Address node1, Ipv4Address node2) {
     lstEntry entry1 = m_lsTable.find( ReverseLookup(node1) );
@@ -727,10 +709,9 @@ LSRoutingProtocol::removeLSTableLink(Ipv4Address node1, Ipv4Address node2) {
     }
 }
 
-
-std::vector<Ipv4Address>
-LSRoutingProtocol::get_neighbors(std::string node) {
-    std::vector<Ipv4Address> neighAddrs;
+void
+LSRoutingProtocol::GetNeighbors(const std::string node, std::vector<Ipv4Address>& neighAddrs) {
+    neighAddrs.clear();
     lstEntry entry = m_lsTable.find(node);
     // check if does not exist, return NULL
     if (entry == m_lsTable.end()) {
@@ -742,7 +723,124 @@ LSRoutingProtocol::get_neighbors(std::string node) {
     for (unsigned i = 0; i < pairs.size(); i++) {
         neighAddrs.push_back(pairs[i].first);
     }
-    return neighAddrs;
+    
+}
+
+uint32_t
+LSRoutingProtocol::DistanceToNeighbor(const std::string node1, const std::string node2) {
+    if (node1 == node2) {
+        return 0;
+    }
+
+    lstEntry entry = m_lsTable.find(node1);
+
+    std::vector<std::pair<Ipv4Address, uint32_t> > pairs = entry->second.neighborCosts;
+    for (unsigned i = 0; i < pairs.size(); i++) {
+        if (ReverseLookup(pairs[i].first) == node2) {
+            return pairs[i].second;
+        }
+    }
+
+    return std::numeric_limits<int>::max();
+}
+
+std::string
+GetMinCostNode( std::map<std::string, bool>& leastCostFound ) {
+    uint32_t min = std::numeric_limits<int>::max();
+    std::string closest;
+
+    for (rtEntry i = m_routingTable.begin(); i != m_routingTable.end(); i++) {
+        std::string node = i->first;
+        if ( leastCostFound.find(node)->second == false )
+            uint32_t cost = i->second.cost;
+            if (cost < min) {
+                min = cost;
+                closest = node;
+            }
+        }
+    }
+    leastCostFound.find(node)->second = true;
+    return closest;
+}
+
+void
+LSRoutingProtocol::Dijkstra() {
+  //we modify the routing table directly
+  //wipe it clean first
+  m_routingTable.clear();
+
+  //create a map from each node to a bool: if true, means already found least cost to that node
+  std::map<std::string, bool> leastCostFound;
+
+  //for each node in our m_lsTable keys, add it to leastCostFound
+  for(lstEntry it = m_lsTable.begin(); it != m_lsTable.end(); it++) {
+    leastCostFound.insert(std::make_pair(it->first, false))
+  }
+
+  //INITIALIZATION
+  //name for this node
+  std::string thisNode = ReverseLookup(m_mainAddress);
+  //get neighbor for this node
+  std::vector<Ipv4Address> neighbors;
+  GetNeighbors(thisNode, neighbors);
+
+  //PRINT OUT
+  std::cout << "My own neighbors: ";
+  for (int i = 0; i < neighbors.size(); i++) {
+    std::cout << neighbors[i] << ", ";
+  }
+  std::cout << "\b\b\n";
+
+  //insert this node into the routing table
+  RoutingTableEntry entry = { thisNode, m_mainAddress.Get(), nullptr,
+    nullptr, 0}; 
+
+  for (int i = 0; i < neighbors.size(); i++) {
+    Ipv4Address nbr = neighbors[i];
+    RoutingTableEntry entry = { nbr, nbr.Get(), nbr,
+      m_neighborTable.find(ReverseLookup(nbr))->second.interfaceAddr,
+      DistanceToNeighbor(thisNode, ReverseLookup(nbr))};
+    //add the new entry to our routing table
+    m_routingTable.insert(std::make_pair(ReverseLookup(nbr), entry));
+  }
+
+  //set this node to true in leastCostFound
+  leastCostFound.find(thisNode)->second = true;
+
+  //MAIN LOOP! woohooooooo
+  for (unsigned i = 0; i < m_lsTable.size()-1; i++) {
+    //pick node with least cost so far
+    std::string current = GetMinCostNode(leastCostFound);
+
+    //get its neighbors
+    GetNeighbors(current, neighbors);
+
+    for (unsigned j = 0; j < neighbors.size(); j++) {
+
+      nbrName = ReverseLookup(neighbors[j]);
+
+      if (m_routingTable.find(nbrName) != m_routingTable.end()) {
+
+        uint32_t old_cost = m_routingTable.find(nbrName)->second.cost;
+
+      } else {
+        uint32_t old_cost = std::numeric_limits<int>::max();
+      }
+
+      uint32_t new_cost = m_routingTable.find(current)->second.cost + 
+        DistanceToNeighbor(current, nbrName);
+
+      if (new_cost < old_cost) {
+        Ipv4Address nextHopAddr = m_routingTable.find(current)->second.nextHopAddr;
+        m_routingTable.find(nbrName)->second.nextHopAddr = nextHopAddr;
+        m_routingTable.find(nbrName)->second.nextHopNum = nextHopAddr.Get();
+
+      }
+
+    }
+
+  }
+ 
 }
 
 
