@@ -359,7 +359,7 @@ LSRoutingProtocol::SendLSTableMessage () {
     neighborAddrs.push_back( i->second.neighborAddr );
   }
 
-  TRAFFIC_LOG("Sending LSTableMessage: sequence num: " << sequenceNumber << ", neighborAddrs.size: " << neighborAddrs.size());
+//  TRAFFIC_LOG("Sending LSTableMessage: sequence num: " << sequenceNumber << ", neighborAddrs.size: " << neighborAddrs.size());
 
   //Ptr<LSTableMessage> lsTableMsg = Create<LSTableMessage> (sequenceNumber, Simulator::Now(), neighborAddrs);
   Ptr<Packet> packet = Create<Packet> ();
@@ -645,9 +645,9 @@ LSRoutingProtocol::ProcessLSTableMessage (LSMessage lsMessage) {
 
     lstEntry entry = m_lsTable.find(fromNode);
 
-    TRAFFIC_LOG("Sequence Number of this entry: " << entry->second.sequenceNumber << " SeqNum of new packet: " << seqNum);
+//    TRAFFIC_LOG("Sequence Number of this entry: " << entry->second.sequenceNumber << " SeqNum of new packet: " << seqNum);
     if (entry == m_lsTable.end() || seqNum > entry->second.sequenceNumber) {
-      std::cout << "Sequence Number is new.\n";
+ //     std::cout << "Sequence Number is new.\n";
 
       //if it was already in the table, delete it first
       if (entry != m_lsTable.end())
@@ -661,10 +661,10 @@ LSRoutingProtocol::ProcessLSTableMessage (LSMessage lsMessage) {
       LSTableEntry newEntry = { neighborCosts, seqNum };
       m_lsTable.insert(std::pair<std::string, LSTableEntry>(fromNode, newEntry));
 
-      DumpLSTable();
+      //DumpLSTable();
       // Run Dijkstra
       Dijkstra();
-      DumpLSTable();
+      //DumpLSTable();
 
       // Send Packet
       Ptr<Packet> p = Create<Packet> ();
@@ -808,11 +808,11 @@ LSRoutingProtocol::GetMinCostNode( const std::map<std::string, bool>& leastCostF
 
     for (rtEntry i = m_routingTable.begin(); i != m_routingTable.end(); i++) {
         std::string node = i->first;
-std::cout << "LOOP node: " << node << '\n';
+//std::cout << "LOOP node: " << node << '\n';
 
         if ( leastCostFound.find(node)->second == false ) {
             cost = i->second.cost;
-std::cout << "LOOP cost: " << cost << '\n';
+//std::cout << "LOOP cost: " << cost << '\n';
             if (cost < min) {
                 min = cost;
                 closest = node;
@@ -821,7 +821,7 @@ std::cout << "LOOP cost: " << cost << '\n';
     }
     //leastCostFound.find(closest)->second = true;
 
-    std::cout << "CLOSEST: " << closest << '\n';
+    //std::cout << "CLOSEST: " << closest << '\n';
     return closest;
 }
 
@@ -835,9 +835,9 @@ LSRoutingProtocol::Dijkstra() {
   std::map<std::string, bool> leastCostFound;
 
   //for each node in our m_lsTable keys, add it to leastCostFound
-  TRAFFIC_LOG("DIJKSTRA: Iterating through LSTABLE");
+  //TRAFFIC_LOG("DIJKSTRA: Iterating through LSTABLE");
   for(lstEntry it = m_lsTable.begin(); it != m_lsTable.end(); it++) {
-    std::cout << it->first << '\n';
+    //std::cout << it->first << '\n';
     leastCostFound.insert(std::make_pair(it->first, false));
   }
 
@@ -881,13 +881,13 @@ LSRoutingProtocol::Dijkstra() {
     //get its neighbors
     GetNeighbors(current, neighbors);
 
-    TRAFFIC_LOG("DIJKSTRA: Current node: " << current << " with neighbors:");
+    //TRAFFIC_LOG("DIJKSTRA: Current node: " << current << " with neighbors:");
     
 
     for (unsigned j = 0; j < neighbors.size(); j++) {
       std::string nbrName = ReverseLookup(neighbors[j]);
 
-      std::cout << nbrName << " ";
+      //std::cout << nbrName << " ";
 
       uint32_t old_cost;
 
@@ -902,20 +902,20 @@ LSRoutingProtocol::Dijkstra() {
       uint32_t new_cost = m_routingTable.find(current)->second.cost + 
         DistanceToNeighbor(current, nbrName);
 
-      std::cout << "old_cost: " << old_cost << " new_cost: " << new_cost << '\n';
+      //std::cout << "old_cost: " << old_cost << " new_cost: " << new_cost << '\n';
 
       if (new_cost < old_cost) {
         Ipv4Address nextHopAddr = m_routingTable.find(current)->second.nextHopAddr;
 
         rtEntry e = m_routingTable.find(nbrName);
         if (e != m_routingTable.end()) {
-            std::cout << "Updating cost\n";
+        //    std::cout << "Updating cost\n";
             e->second.nextHopAddr = nextHopAddr;
             e->second.nextHopNum = nextHopAddr.Get();
             e->second.interfaceAddr = m_neighborTable.find(ReverseLookup(neighbors[j]))->second.interfaceAddr;
             e->second.cost = new_cost;
         } else {
-            std::cout << "new rt entry\n";
+         //   std::cout << "new rt entry\n";
             RoutingTableEntry rte = { neighbors[j], nextHopAddr.Get(), nextHopAddr,
                m_neighborTable.find(ReverseLookup(neighbors[j]))->second.interfaceAddr, new_cost};
                //add the new entry to our routing table
@@ -927,7 +927,7 @@ LSRoutingProtocol::Dijkstra() {
     }
 
   }
-  DumpRoutingTable();
+  //DumpRoutingTable();
 
 }
 
