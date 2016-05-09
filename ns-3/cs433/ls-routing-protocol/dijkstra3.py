@@ -75,8 +75,8 @@ for i in range(N-1):
 
     #add each neighbor of current node that is not already in result to the least_costs map
     for neighbor in get_neighbors(current):
-        if result[neighbor] == True:
-            continue
+        #if result[neighbor] == True:
+        #    continue
         if neighbor in least_costs_and_nexthop:
             old_cost = least_costs_and_nexthop[neighbor][0]
         else:
