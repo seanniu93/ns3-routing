@@ -526,11 +526,32 @@ LSRoutingProtocol::ProcessHelloReq (LSMessage lsMessage, Ptr<Socket> socket)
 
   ntEntry e = m_neighborTable.find( fromNode );
 
-  if ( e != m_neighborTable.end() ) {
+  if ( e != m_neighborTable.end() ) {//neighbor was already in our table
     e->second.lastUpdated = Simulator::Now();
   } else {
+    //new neighbor discovered!
+
+    //add it to our immediate neighbors table
     NeighborTableEntry entry = { neighAddr, interfaceAddr , Simulator::Now() };
-    m_neighborTable.insert(std::make_pair(fromNode, entry)); 
+    m_neighborTable.insert(std::make_pair(fromNode, entry));
+
+    //also add it to the lsTable (with neighbor information for all nodes in network)
+    //see if this node is already in that table
+    lstEntry lste = m_lsTable.find( ReverseLookup(m_mainAddress) );
+    if ( lste != m_lsTable.end() ) {//if this node is already in there
+      //then just add this neighbor to the neighbors vector
+      lste->second.neighborCosts.push_back(std::make_pair(neighAddr, 1));//TODO: change cost here
+
+    } else {
+      std::vector<std::pair<Ipv4Address, uint32_t> > nbrCosts = { std::make_pair(neighAddr, 1)};//TODO: change cost here
+      LSTableEntry lstEntry = { nbrCosts, lsMessage.GetSequenceNumber() };
+      m_lsTable.insert(std::make_pair(ReverseLookup(m_mainAddress), lstEntry));
+
+    }
+
+
+    //run Dijkstra to update costs
+    Dijkstra();
 
     SendLSTableMessage(); // neighbor table has changed, so resend neighbor info
   }
@@ -546,6 +567,7 @@ LSRoutingProtocol::ProcessHelloReq (LSMessage lsMessage, Ptr<Socket> socket)
 
 }
 
+/*
 void
 LSRoutingProtocol::ProcessHelloRsp (LSMessage lsMessage, Ptr<Socket> socket)
 {
@@ -581,6 +603,7 @@ LSRoutingProtocol::ProcessHelloRsp (LSMessage lsMessage, Ptr<Socket> socket)
   //     DEBUG_LOG ("Received invalid Hello_RSP!");
   //   }
 }
+*/
 
 void
 LSRoutingProtocol::ProcessLSTableMessage (LSMessage lsMessage) {
@@ -608,6 +631,7 @@ LSRoutingProtocol::ProcessLSTableMessage (LSMessage lsMessage) {
       m_lsTable.insert(std::pair<std::string, LSTableEntry>(fromNode, newEntry));
 
       // Run Dijstra
+      Dijkstra();
 
 
       // Send Packet
