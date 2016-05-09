@@ -94,6 +94,8 @@ class LSRoutingProtocol : public CommRoutingProtocol
     void ProcessHelloRsp (LSMessage lsMessage, Ptr<Socket> socket);
     void ProcessLSTableMessage (LSMessage lsMessage);
 
+    void Dijkstra();
+
     void SendHello ();
     void SendLSTableMessage ();
 
@@ -215,7 +217,7 @@ class LSRoutingProtocol : public CommRoutingProtocol
      * \param ipv4Address IP address of node.
      */
 
-    virtual std::string ReverseLookup (Ipv4Address ipv4Address); 
+    virtual std::string ReverseLookup (Ipv4Address); 
     
     // Status 
     void DumpLSA ();
@@ -232,9 +234,10 @@ class LSRoutingProtocol : public CommRoutingProtocol
      */
     bool IsOwnAddress (Ipv4Address originatorAddress);
 
-    std::vector<Ipv4Address> GetNeighbors(std::string node);
-    uint32_t DistanceToNeighbor(std::string node1, std::string node2);
-    void removeLSTableLink(Ipv4Address node1, Ipv4Address node2);
+    void GetNeighbors(const std::string, std::vector<Ipv4Address>&);
+    uint32_t DistanceToNeighbor(const std::string, const std::string);
+    void removeLSTableLink(Ipv4Address, Ipv4Address);
+    std::string GetMinCostNode( const std::map<std::string, bool>& );
 
   private:
     std::map< Ptr<Socket>, Ipv4InterfaceAddress > m_socketAddresses;

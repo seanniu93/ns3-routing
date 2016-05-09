@@ -543,7 +543,8 @@ LSRoutingProtocol::ProcessHelloReq (LSMessage lsMessage, Ptr<Socket> socket)
       lste->second.neighborCosts.push_back(std::make_pair(neighAddr, 1));//TODO: change cost here
 
     } else {
-      std::vector<std::pair<Ipv4Address, uint32_t> > nbrCosts = { std::make_pair(neighAddr, 1)};//TODO: change cost here
+      std::vector<std::pair<Ipv4Address, uint32_t> > nbrCosts;
+      nbrCosts.push_back(std::make_pair(neighAddr, 1));  //TODO: change cost here
       LSTableEntry lstEntry = { nbrCosts, lsMessage.GetSequenceNumber() };
       m_lsTable.insert(std::make_pair(ReverseLookup(m_mainAddress), lstEntry));
 
@@ -739,7 +740,7 @@ LSRoutingProtocol::GetNeighbors(const std::string node, std::vector<Ipv4Address>
     lstEntry entry = m_lsTable.find(node);
     // check if does not exist, return NULL
     if (entry == m_lsTable.end()) {
-        return neighAddrs;
+        return;
     }
 
     std::vector<std::pair<Ipv4Address, uint32_t> > pairs = entry->second.neighborCosts;
@@ -769,21 +770,22 @@ LSRoutingProtocol::DistanceToNeighbor(const std::string node1, const std::string
 }
 
 std::string
-GetMinCostNode( std::map<std::string, bool>& leastCostFound ) {
+LSRoutingProtocol::GetMinCostNode( const std::map<std::string, bool>& leastCostFound ) {
     uint32_t min = std::numeric_limits<int>::max();
+    uint32_t cost;
     std::string closest;
 
     for (rtEntry i = m_routingTable.begin(); i != m_routingTable.end(); i++) {
         std::string node = i->first;
-        if ( leastCostFound.find(node)->second == false )
-            uint32_t cost = i->second.cost;
+        if ( leastCostFound.find(node)->second == false ) {
+            cost = i->second.cost;
             if (cost < min) {
                 min = cost;
                 closest = node;
             }
         }
     }
-    leastCostFound.find(node)->second = true;
+    //leastCostFound.find(closest)->second = true;
     return closest;
 }
 
@@ -798,7 +800,7 @@ LSRoutingProtocol::Dijkstra() {
 
   //for each node in our m_lsTable keys, add it to leastCostFound
   for(lstEntry it = m_lsTable.begin(); it != m_lsTable.end(); it++) {
-    leastCostFound.insert(std::make_pair(it->first, false))
+    leastCostFound.insert(std::make_pair(it->first, false));
   }
 
   //INITIALIZATION
@@ -816,8 +818,8 @@ LSRoutingProtocol::Dijkstra() {
   std::cout << "\b\b\n";
 
   //insert this node into the routing table
-  RoutingTableEntry entry = { thisNode, m_mainAddress.Get(), nullptr,
-    nullptr, 0}; 
+  RoutingTableEntry entry = { m_mainAddress, m_mainAddress.Get(), NULL,
+    NULL, 0}; 
 
   for (int i = 0; i < neighbors.size(); i++) {
     Ipv4Address nbr = neighbors[i];
@@ -835,20 +837,22 @@ LSRoutingProtocol::Dijkstra() {
   for (unsigned i = 0; i < m_lsTable.size()-1; i++) {
     //pick node with least cost so far
     std::string current = GetMinCostNode(leastCostFound);
+    leastCostFound.find(current)->second = true;
 
     //get its neighbors
     GetNeighbors(current, neighbors);
 
     for (unsigned j = 0; j < neighbors.size(); j++) {
 
-      nbrName = ReverseLookup(neighbors[j]);
+      std::string nbrName = ReverseLookup(neighbors[j]);
+      uint32_t old_cost;
 
       if (m_routingTable.find(nbrName) != m_routingTable.end()) {
 
-        uint32_t old_cost = m_routingTable.find(nbrName)->second.cost;
+        old_cost = m_routingTable.find(nbrName)->second.cost;
 
       } else {
-        uint32_t old_cost = std::numeric_limits<int>::max();
+        old_cost = std::numeric_limits<int>::max();
       }
 
       uint32_t new_cost = m_routingTable.find(current)->second.cost + 
