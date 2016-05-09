@@ -727,7 +727,6 @@ LSRoutingProtocol::removeLSTableLink(Ipv4Address node1, Ipv4Address node2) {
     }
 }
 
-
 std::vector<Ipv4Address>
 LSRoutingProtocol::get_neighbors(std::string node) {
     std::vector<Ipv4Address> neighAddrs;
