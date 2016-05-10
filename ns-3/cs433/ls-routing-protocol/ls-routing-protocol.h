@@ -286,6 +286,8 @@ class LSRoutingProtocol : public CommRoutingProtocol
     typedef std::map<std::string, NeighborTableEntry>::iterator ntEntry;
     typedef std::map<std::string, RoutingTableEntry>::iterator rtEntry;
     typedef std::map<std::string, LSTableEntry>::iterator lstEntry;
+
+    bool SearchTable (RoutingTableEntry& out_entry, Ipv4Address dest);
 };
 
 #endif
