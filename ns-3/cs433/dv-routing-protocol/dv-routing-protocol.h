@@ -249,6 +249,11 @@ class DVRoutingProtocol : public CommRoutingProtocol
     // Ping tracker
     std::map<uint32_t, Ptr<PingRequest> > m_pingTracker;
 
+
+    typedef std::map<std::string, uint32_t> distanceVector;
+
+    distanceVector m_dv;
+
     struct RoutingTableEntry {
       Ipv4Address destAddr;
       uint32_t nextHopNum;
@@ -261,8 +266,12 @@ class DVRoutingProtocol : public CommRoutingProtocol
       Ipv4Address neighborAddr;
       Ipv4Address interfaceAddr;
       Time lastUpdated;
+
+      uint32_t cost;
+      distanceVector dv;
     };
 
+    // Remove this!
     struct DVTableEntry {
       std::vector<std::pair<Ipv4Address, uint32_t> > neighborCosts;
       uint32_t sequenceNumber; // I don't think we need this for the DV algorithm

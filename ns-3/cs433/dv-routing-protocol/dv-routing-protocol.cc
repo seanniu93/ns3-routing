@@ -307,7 +307,7 @@ DVRoutingProtocol::SendHello () {
    dvMessage.SetHelloReq (destAddress, "hello");
    packet->AddHeader (dvMessage);
    BroadcastPacket (packet);
- }
+}
 
 // TODO: How does this need to change?
 void
@@ -322,11 +322,10 @@ DVRoutingProtocol::SendDVTableMessage () {
   //TRAFFIC_LOG("Sending LSTableMessage: sequence num: " << sequenceNumber << ", neighborAddrs.size: " << neighborAddrs.size());
   //Ptr<LSTableMessage> lsTableMsg = Create<LSTableMessage> (sequenceNumber, Simulator::Now(), neighborAddrs);
   Ptr<Packet> packet = Create<Packet> ();
-  DVMessage dvMessage = DVMessage (DVMessage::DV_TABLE_MSG, sequenceNumber, m_maxTTL, m_mainAddress);
+  DVMessage dvMessage = DVMessage (DVMessage::DV_TABLE_MSG, sequenceNumber, 1, m_mainAddress);
   dvMessage.SetDVTableMsg(neighborAddrs);
   packet->AddHeader (dvMessage);
   BroadcastPacket (packet);
-
 }
 
 
@@ -494,11 +493,11 @@ DVRoutingProtocol::ProcessDVTableMessage (DVMessage dvMessage) {
     std::vector<Ipv4Address> neighborAddrs = dvMessage.GetDVTableMsg().neighbors;
     uint32_t seqNum = dvMessage.GetSequenceNumber();
 
-    TRAFFIC_LOG("Received from: " << ReverseLookup(dvMessage.GetOriginatorAddress()) << "\n Neighbors: " );
-    for (unsigned i = 0; i < neighborAddrs.size(); ++i) {
-        std::cout << neighborAddrs[i] << " " << ReverseLookup(neighborAddrs[i]) << '\n';
-    }
-    std::cout << '\n';
+//    TRAFFIC_LOG("Received from: " << ReverseLookup(dvMessage.GetOriginatorAddress()) << "\n Neighbors: " );
+//    for (unsigned i = 0; i < neighborAddrs.size(); ++i) {
+//        std::cout << neighborAddrs[i] << " " << ReverseLookup(neighborAddrs[i]) << '\n';
+//    }
+//    std::cout << '\n';
 
     // if we have not seen the packet before, broadcast it
     Ipv4Address fromAddr = dvMessage.GetOriginatorAddress();
@@ -507,14 +506,16 @@ DVRoutingProtocol::ProcessDVTableMessage (DVMessage dvMessage) {
     dvtEntry entry = m_dvTable.find(fromNode);
 
 //    TRAFFIC_LOG("Sequence Number of this entry: " << entry->second.sequenceNumber << " SeqNum of new packet: " << seqNum);
+
+    // Technically, I think we don't need the seqNum for dv because there is not
+    // way an old packet will arrive after a newer one if the messages are only neighbor-to-neighbor
     if (entry == m_dvTable.end() || seqNum > entry->second.sequenceNumber) {
- //     std::cout << "Sequence Number is new.\n";
 
       //if it was already in the table, delete it first
       if (entry != m_dvTable.end())
         m_dvTable.erase(entry);
 
-      // Add to LSTable
+      // Add to DVTable
       std::vector<std::pair<Ipv4Address, uint32_t> > neighborCosts;
       for (int i = 0; i < neighborAddrs.size(); i++) {
         neighborCosts.push_back(std::make_pair(neighborAddrs[i], 1)); // TODO: change cost here
@@ -524,11 +525,8 @@ DVRoutingProtocol::ProcessDVTableMessage (DVMessage dvMessage) {
 
       // Run Bellman Ford
 
-
-      // Send Packet
-      Ptr<Packet> p = Create<Packet> ();
-      p->AddHeader (dvMessage);
-      BroadcastPacket (p);
+      // Send new packet with neighbor info
+      SendDVTableMessage();
     }
 }
 
