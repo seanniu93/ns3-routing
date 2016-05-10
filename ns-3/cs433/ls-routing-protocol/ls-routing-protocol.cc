@@ -96,6 +96,7 @@ LSRoutingProtocol::DoDispose ()
 
   // Cancel timers
   m_auditPingsTimer.Cancel ();
+  m_auditHellosTimer.Cancel ();
  
   m_pingTracker.clear (); 
 
