@@ -769,11 +769,19 @@ LSRoutingProtocol::removeLSTableLink(Ipv4Address node1, Ipv4Address node2) {
     lstEntry entry1 = m_lsTable.find( ReverseLookup(node1) );
     lstEntry entry2 = m_lsTable.find( ReverseLookup(node2) );
 
+    //remove this
+    std::cout << "Removing link between " << ReverseLookup(node1) << " and " << ReverseLookup(node2) << std::endl;
+    std::cout << "Table before removing:" << endl;
+    DumpLSTable();
+
+    dump
+
     if (entry1 != m_lsTable.end()) {
         std::vector<std::pair<Ipv4Address, uint32_t> > pairs1 = entry1->second.neighborCosts;
         for (unsigned i = 0; i < pairs1.size(); i++) {
             if (pairs1[i].first == node2) {
                 pairs1.erase(pairs1.begin() + i);
+                break;
             }
         }
     }
@@ -783,9 +791,13 @@ LSRoutingProtocol::removeLSTableLink(Ipv4Address node1, Ipv4Address node2) {
         for (unsigned i = 0; i < pairs2.size(); i++) {
             if (pairs2[i].first == node1) {
                 pairs2.erase(pairs2.begin() + i);
+                break;
             }
         }
     }
+
+    std::cout << "Table after removing:" << endl;
+    DumpLSTable();
 }
 
 void
