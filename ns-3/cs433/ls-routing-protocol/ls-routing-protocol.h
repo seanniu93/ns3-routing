@@ -199,8 +199,6 @@ class LSRoutingProtocol : public CommRoutingProtocol
      */
     void BroadcastPacket (Ptr<Packet> packet);
 
-    void SendPacket (Ptr<Packet> packet, Ptr<Socket> socket);
-
     /**
      * \brief Returns the main IP address of a node in Inet topology.
      *

@@ -255,21 +255,6 @@ LSRoutingProtocol::BroadcastPacket (Ptr<Packet> packet)
 }
 
 void
-LSRoutingProtocol::SendPacket (Ptr<Packet> packet, Ptr<Socket> socket)
-{
-  std::map<Ptr<Socket> , Ipv4InterfaceAddress>::const_iterator i = m_socketAddresses.find(socket);
-  if (i != m_socketAddresses.end())
-    {
-      Ipv4Address broadcastAddr = i->second.GetLocal ().GetSubnetDirectedBroadcast (i->second.GetMask ());
-      i->first->SendTo (packet, 0, InetSocketAddress (broadcastAddr, m_lsPort));
-    }
-  else
-    {
-      ERROR_LOG ("Didn't find socket in m_socketAddresses");
-    }
-}
-
-void
 LSRoutingProtocol::ProcessCommand (std::vector<std::string> tokens)
 {
   std::vector<std::string>::iterator iterator = tokens.begin();
