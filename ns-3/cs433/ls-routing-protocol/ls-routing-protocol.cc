@@ -345,7 +345,11 @@ LSRoutingProtocol::SendHello () {
   // Add to hello-tracker
 //  m_helloTracker.insert (std::make_pair (sequenceNumber, helloRequest));
   Ptr<Packet> packet = Create<Packet> ();
+  //TTL for HELLO msgs is 1
   LSMessage lsMessage = LSMessage (LSMessage::HELLO_REQ, sequenceNumber, 1, m_mainAddress);
+
+  //TRAFFIC_LOG("MY TTL IS: " << (unsigned)lsMessage.GetTTL() << " and my seqNum is " << lsMessage.GetSequenceNumber());
+
   lsMessage.SetHelloReq (destAddress, "hello");
   packet->AddHeader (lsMessage);
   BroadcastPacket (packet);
@@ -365,6 +369,7 @@ LSRoutingProtocol::SendLSTableMessage () {
   //Ptr<LSTableMessage> lsTableMsg = Create<LSTableMessage> (sequenceNumber, Simulator::Now(), neighborAddrs);
   Ptr<Packet> packet = Create<Packet> ();
   LSMessage lsMessage = LSMessage (LSMessage::LS_TABLE_MSG, sequenceNumber, m_maxTTL, m_mainAddress);
+  TRAFFIC_LOG("Sending LSTableMessage: " << lsMessage);
   lsMessage.SetLSTableMsg(neighborAddrs);
   packet->AddHeader (lsMessage);
   BroadcastPacket (packet);
@@ -526,12 +531,11 @@ void
 LSRoutingProtocol::ProcessHelloReq (LSMessage lsMessage, Ptr<Socket> socket)
 {
   // Use reverse lookup for ease of debug
-  //std::string fromNode = ReverseLookup (lsMessage.GetOriginatorAddress ());
-  //TRAFFIC_LOG ("Received HELLO_REQ, From Node: " << fromNode);
-
   Ipv4Address neighAddr = lsMessage.GetOriginatorAddress();
   std::string fromNode = ReverseLookup (lsMessage.GetOriginatorAddress());
   Ipv4Address interfaceAddr;
+
+  TRAFFIC_LOG ("Received HELLO_REQ, From Node: " << fromNode << " with TTL " << (unsigned)lsMessage.GetTTL());
 
   std::map<Ptr<Socket> , Ipv4InterfaceAddress>::const_iterator i = m_socketAddresses.find(socket);
   if (i != m_socketAddresses.end())
@@ -634,7 +638,9 @@ LSRoutingProtocol::ProcessLSTableMessage (LSMessage lsMessage) {
     std::vector<Ipv4Address> neighborAddrs = lsMessage.GetLSTableMsg().neighbors;
     uint32_t seqNum = lsMessage.GetSequenceNumber();
 
-    TRAFFIC_LOG("Received from: " << ReverseLookup(lsMessage.GetOriginatorAddress()) << "\n Neighbors: " );
+    //TRAFFIC_LOG("Received from: " << ReverseLookup(lsMessage.GetOriginatorAddress()) << "\n Neighbors: " );
+    TRAFFIC_LOG("Received LSTableMessage. " << lsMessage);
+
     for (unsigned i = 0; i < neighborAddrs.size(); ++i) {
         std::cout << neighborAddrs[i] << " " << ReverseLookup(neighborAddrs[i]) << '\n';
     }
@@ -669,6 +675,7 @@ LSRoutingProtocol::ProcessLSTableMessage (LSMessage lsMessage) {
 
       // Send Packet
       Ptr<Packet> p = Create<Packet> ();
+      lsMessage.SetTTL( lsMessage.GetTTL() - 1 ); // we need to decrement TTL ourselves
       p->AddHeader (lsMessage);
       BroadcastPacket (p);
     }

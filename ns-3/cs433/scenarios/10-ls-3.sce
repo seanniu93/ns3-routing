@@ -14,12 +14,10 @@
 # Advance Time pointer by 60 seconds. Allow the routing protocol to stabilize.
 TIME 7000
 
-
 0 LS DUMP ROUTES
 1 LS DUMP ROUTES
 2 LS DUMP ROUTES
 3 LS DUMP ROUTES
-
 
 # Quit the simulator. Commented for now.
 QUIT

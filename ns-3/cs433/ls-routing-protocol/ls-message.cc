@@ -91,7 +91,7 @@ LSMessage::Print (std::ostream &os) const
   os << "\n****LSMessage Dump****\n" ;
   os << "messageType: " << m_messageType << "\n";
   os << "sequenceNumber: " << m_sequenceNumber << "\n";
-  os << "ttl: " << m_ttl << "\n";
+  os << "ttl: " << unsigned(m_ttl) << "\n";//must cast unit8_t to unsigned to print it correctly!!
   os << "originatorAddress: " << m_originatorAddress << "\n";
   os << "PAYLOAD:: \n";
   
