@@ -252,7 +252,9 @@ class DVRoutingProtocol : public CommRoutingProtocol
 
     typedef std::map<std::string, uint32_t> distanceVector;
 
-    distanceVector m_dv;
+    // Why do we need both of these?
+    distanceVector m_dv;    // Cost to all destinations
+    distanceVector m_costs; // Cost to each neighbor
 
     struct RoutingTableEntry {
       Ipv4Address destAddr;
@@ -266,8 +268,7 @@ class DVRoutingProtocol : public CommRoutingProtocol
       Ipv4Address neighborAddr;
       Ipv4Address interfaceAddr;
       Time lastUpdated;
-
-      uint32_t cost;
+    //  uint32_t cost;
       distanceVector dv;
     };
 

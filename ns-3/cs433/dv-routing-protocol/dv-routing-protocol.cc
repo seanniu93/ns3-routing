@@ -427,9 +427,6 @@ DVRoutingProtocol::ProcessPingRsp (DVMessage dvMessage)
 }
 
 
-
-
-
 void
 DVRoutingProtocol::ProcessHelloReq (DVMessage dvMessage, Ptr<Socket> socket)
 {
@@ -462,7 +459,7 @@ DVRoutingProtocol::ProcessHelloReq (DVMessage dvMessage, Ptr<Socket> socket)
     //new neighbor discovered!
 
     //add it to our immediate neighbors table
-    NeighborTableEntry entry = { neighAddr, interfaceAddr , Simulator::Now() };
+    NeighborTableEntry entry = { neighAddr, interfaceAddr , Simulator::Now(), distanceVector emptydv };
     m_neighborTable.insert(std::make_pair(fromNode, entry));
 
     //also add it to the lsTable (with neighbor information for all nodes in network)
