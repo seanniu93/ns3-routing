@@ -375,9 +375,9 @@ void
 LSRoutingProtocol::SendLSTableMessage () {
   uint32_t sequenceNumber = GetNextSequenceNumber ();
 
-  std::vector<Ipv4Address> neighborAddrs;
+  nbrCostsVec neighborAddrs;
   for (ntEntry i = m_neighborTable.begin (); i != m_neighborTable.end (); i++) {
-    neighborAddrs.push_back( i->second.neighborAddr );
+    neighborAddrs.push_back( std::make_pair(i->second.neighborAddr, (uint32_t) 1 )); //TODO change cost here
   }
 
 //  TRAFFIC_LOG("Sending LSTableMessage: sequence num: " << sequenceNumber << ", neighborAddrs.size: " << neighborAddrs.size());
@@ -457,7 +457,7 @@ LSRoutingProtocol::DumpLSTable ()
 	{
 	    LSTableEntry entry = i->second;
             std::cout << "\nNode " << i->first << '\n';
-            std::vector<std::pair<Ipv4Address, uint32_t> > nc = entry.neighborCosts;
+            nbrCostsVec nc = entry.neighborCosts;
             for (int i = 0; i < nc.size(); i++) {
                 std::cout << ReverseLookup(nc[i].first) << " " << nc[i].second << '\n';
             }
@@ -581,10 +581,10 @@ LSRoutingProtocol::ProcessHelloReq (LSMessage lsMessage, Ptr<Socket> socket)
     lstEntry lste = m_lsTable.find( ReverseLookup(m_mainAddress) );
     if ( lste != m_lsTable.end() ) {//if this node is already in there
       //then just add this neighbor to the neighbors vector
-      lste->second.neighborCosts.push_back(std::make_pair(neighAddr, 1));//TODO: change cost here
+      lste->second.neighborCosts.push_back(std::make_pair(neighAddr, (uint32_t) 1));//TODO: change cost here
 
     } else {
-      std::vector<std::pair<Ipv4Address, uint32_t> > nbrCosts;
+      nbrCostsVec nbrCosts;
       nbrCosts.push_back(std::make_pair(neighAddr, 1));  //TODO: change cost here
       LSTableEntry lstEntry = { nbrCosts, lsMessage.GetSequenceNumber() };
       m_lsTable.insert(std::make_pair(ReverseLookup(m_mainAddress), lstEntry));
@@ -651,12 +651,12 @@ LSRoutingProtocol::ProcessHelloRsp (LSMessage lsMessage, Ptr<Socket> socket)
 
 void
 LSRoutingProtocol::ProcessLSTableMessage (LSMessage lsMessage) {
-    std::vector<Ipv4Address> neighborAddrs = lsMessage.GetLSTableMsg().neighbors;
+    nbrCostsVec neighborAddrs = lsMessage.GetLSTableMsg().neighborCosts;
     uint32_t seqNum = lsMessage.GetSequenceNumber();
 
     std::stringstream ss;
     for (unsigned i = 0; i < neighborAddrs.size(); ++i) {
-        ss << neighborAddrs[i] << " " << ReverseLookup(neighborAddrs[i]) << '\n';
+        ss << neighborAddrs[i].first << " " << ReverseLookup(neighborAddrs[i].first) << '\n';
     }
     ss << '\n';
     TRAFFIC_LOG("Received LSTableMessage. " << lsMessage << "\n Neighbors: \n" << ss.str());
@@ -676,9 +676,9 @@ LSRoutingProtocol::ProcessLSTableMessage (LSMessage lsMessage) {
         m_lsTable.erase(entry);
 
       // Add to LSTable
-      std::vector<std::pair<Ipv4Address, uint32_t> > neighborCosts;
+      nbrCostsVec neighborCosts;
       for (int i = 0; i < neighborAddrs.size(); i++) {
-        neighborCosts.push_back(std::make_pair(neighborAddrs[i], 1)); // TODO: change cost here
+        neighborCosts.push_back(std::make_pair(neighborAddrs[i].first, neighborAddrs[i].second));
       }
       LSTableEntry newEntry = { neighborCosts, seqNum };
       m_lsTable.insert(std::pair<std::string, LSTableEntry>(fromNode, newEntry));
@@ -748,11 +748,21 @@ LSRoutingProtocol::AuditHellos()
       NeighborTableEntry entry = i->second;
   //    TRAFFIC_LOG ("AUDIT HELLOS: entry.lastUpdated: " << entry.lastUpdated.GetMilliSeconds() << ", timeout: " << m_helloTimeout.GetMilliSeconds() << ", time is now: " << Simulator::Now().GetMilliSeconds());
 
-  if ( entry.lastUpdated.GetMilliSeconds() + m_helloTimeout.GetMilliSeconds() <= Simulator::Now().GetMilliSeconds()) {
-         removeLSTableLink( m_mainAddress, entry.neighborAddr );
-         m_neighborTable.erase(i);
-         sendMsg = true;
-      }
+    if ( entry.lastUpdated.GetMilliSeconds() + m_helloTimeout.GetMilliSeconds() <= Simulator::Now().GetMilliSeconds()) {
+        //remove missing neighbor from my my own entry in LSTable:
+        //1) get my entry
+        lstEntry entry1 = m_lsTable.find( ReverseLookup(m_mainAddress) );
+        //2) remove neighbor form the neighborCosts vector in my entry
+        removeLSTableLink( m_mainAddress, entry1->second.neighborCosts );
+
+        //now, remove myself from the neighbor's entry in LSTable:
+        lstEntry entry2 = m_lsTable.find( ReverseLookup(m_mainAddress) );
+        removeLSTableLink( entry.neighborAddr, entry2->second.neighborCosts );
+
+        //remove the neighbor from my Neighbors table
+        m_neighborTable.erase(i);
+        sendMsg = true;
+    }
   }
 
   if (sendMsg) {
@@ -765,19 +775,21 @@ LSRoutingProtocol::AuditHellos()
 }
 
 void
-LSRoutingProtocol::removeLSTableLink(Ipv4Address node1, Ipv4Address node2) {
+LSRoutingProtocol::removeLSTableLink(Ipv4Address nodeToRemove, nbrCostsVec& vectorToChange) {
+  for (unsigned i = 0; i < vectorToChange.size(); i++) {
+      if (vectorToChange[i].first == nodeToRemove) {
+          vectorToChange.erase(vectorToChange.begin() + i);
+          break;
+        }
+  }
+}
+void
+LSRoutingProtocol::removeLSTableLink_old(Ipv4Address node1, Ipv4Address node2) {
     lstEntry entry1 = m_lsTable.find( ReverseLookup(node1) );
     lstEntry entry2 = m_lsTable.find( ReverseLookup(node2) );
 
-    //remove this
-    std::cout << "Removing link between " << ReverseLookup(node1) << " and " << ReverseLookup(node2) << std::endl;
-    std::cout << "Table before removing:" << endl;
-    DumpLSTable();
-
-    dump
-
     if (entry1 != m_lsTable.end()) {
-        std::vector<std::pair<Ipv4Address, uint32_t> > pairs1 = entry1->second.neighborCosts;
+        nbrCostsVec pairs1 = entry1->second.neighborCosts;
         for (unsigned i = 0; i < pairs1.size(); i++) {
             if (pairs1[i].first == node2) {
                 pairs1.erase(pairs1.begin() + i);
@@ -787,7 +799,7 @@ LSRoutingProtocol::removeLSTableLink(Ipv4Address node1, Ipv4Address node2) {
     }
 
     if (entry2 != m_lsTable.end()) {
-        std::vector<std::pair<Ipv4Address, uint32_t> > pairs2 = entry2->second.neighborCosts;
+        nbrCostsVec pairs2 = entry2->second.neighborCosts;
         for (unsigned i = 0; i < pairs2.size(); i++) {
             if (pairs2[i].first == node1) {
                 pairs2.erase(pairs2.begin() + i);
@@ -796,8 +808,6 @@ LSRoutingProtocol::removeLSTableLink(Ipv4Address node1, Ipv4Address node2) {
         }
     }
 
-    std::cout << "Table after removing:" << endl;
-    DumpLSTable();
 }
 
 void
@@ -809,7 +819,7 @@ LSRoutingProtocol::GetNeighbors(const std::string node, std::vector<Ipv4Address>
         return;
     }
 
-    std::vector<std::pair<Ipv4Address, uint32_t> > pairs = entry->second.neighborCosts;
+    nbrCostsVec pairs = entry->second.neighborCosts;
         
     for (unsigned i = 0; i < pairs.size(); i++) {
         neighAddrs.push_back(pairs[i].first);
@@ -825,7 +835,7 @@ LSRoutingProtocol::DistanceToNeighbor(const std::string node1, const std::string
 
     lstEntry entry = m_lsTable.find(node1);
 
-    std::vector<std::pair<Ipv4Address, uint32_t> > pairs = entry->second.neighborCosts;
+    nbrCostsVec pairs = entry->second.neighborCosts;
     for (unsigned i = 0; i < pairs.size(); i++) {
         if (ReverseLookup(pairs[i].first) == node2) {
             return pairs[i].second;

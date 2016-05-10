@@ -225,6 +225,9 @@ class LSRoutingProtocol : public CommRoutingProtocol
 
   protected:
     virtual void DoStart (void);
+
+    typedef std::vector<std::pair<Ipv4Address, uint32_t> > nbrCostsVec;
+    
     uint32_t GetNextSequenceNumber ();
     /**
      * \brief Check whether the specified IP is owned by this node.
@@ -235,7 +238,8 @@ class LSRoutingProtocol : public CommRoutingProtocol
 
     void GetNeighbors(const std::string, std::vector<Ipv4Address>&);
     uint32_t DistanceToNeighbor(const std::string, const std::string);
-    void removeLSTableLink(Ipv4Address, Ipv4Address);
+    void removeLSTableLink()
+    void removeLSTableLink_old(Ipv4Address, Ipv4Address);
     std::string GetMinCostNode( const std::map<std::string, bool>& );
 
   private:
@@ -273,7 +277,7 @@ class LSRoutingProtocol : public CommRoutingProtocol
     };
 
     struct LSTableEntry {
-      std::vector<std::pair<Ipv4Address, uint32_t> > neighborCosts;
+      nbrCostsVec neighborCosts;
       uint32_t sequenceNumber;
       // uint32_t ttl;
     };
@@ -286,6 +290,7 @@ class LSRoutingProtocol : public CommRoutingProtocol
     typedef std::map<std::string, NeighborTableEntry>::iterator ntEntry;
     typedef std::map<std::string, RoutingTableEntry>::iterator rtEntry;
     typedef std::map<std::string, LSTableEntry>::iterator lstEntry;
+    
 
     bool SearchTable (RoutingTableEntry& out_entry, Ipv4Address dest);
 };

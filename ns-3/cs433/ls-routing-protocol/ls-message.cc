@@ -425,7 +425,7 @@ uint32_t
 LSMessage::LSTableMsg::GetSerializedSize (void) const
 {
   uint32_t size;
-  size = sizeof(uint16_t) + IPV4_ADDRESS_SIZE * neighbors.size();
+  size = sizeof(uint16_t) + (IPV4_ADDRESS_SIZE + sizeof(uint32_t)) * neighborCosts.size();
   return size;
 }
 
@@ -433,8 +433,8 @@ void
 LSMessage::LSTableMsg::Print (std::ostream &os) const
 {
   os << "LSTableMsg:: Neighbors: ";
-  for(unsigned i = 0; i < neighbors.size(); i++) {
-      os << neighbors[i] << ", ";
+  for(unsigned i = 0; i < neighborCosts.size(); i++) {
+      os << neighborCosts[i].first << ":" << neighborCosts[i].second << ", ";
   } 
   os << "\b\b\n";
 
@@ -444,9 +444,10 @@ LSMessage::LSTableMsg::Print (std::ostream &os) const
 void
 LSMessage::LSTableMsg::Serialize (Buffer::Iterator &start) const
 {
-  start.WriteU16 (neighbors.size ());
-  for(unsigned i = 0; i < neighbors.size(); i++) {
-    start.WriteHtonU32 (neighbors[i].Get ());
+  start.WriteU16 (neighborCosts.size ());
+  for (unsigned i = 0; i < neighborCosts.size(); i++) {
+      start.WriteHtonU32 (neighborCosts[i].first.Get ());
+      start.WriteHtonU32 (neighborCosts[i].second);
   }
 }
 
@@ -457,13 +458,15 @@ LSMessage::LSTableMsg::Deserialize (Buffer::Iterator &start)
   uint16_t nOfNeighbors = start.ReadU16 ();
   
   for (unsigned i = 0; i < nOfNeighbors; i++) {
-    neighbors.push_back( Ipv4Address (start.ReadNtohU32 ()) );
+    Ipv4Address addr = Ipv4Address (start.ReadNtohU32 ());
+    uint32_t cost = start.ReadNtohU32 ();
+    neighborCosts.push_back( std::make_pair(addr, cost) );
   }
   return LSTableMsg::GetSerializedSize ();
 }
 
 void
-LSMessage::SetLSTableMsg (std::vector<Ipv4Address> neighbors)
+LSMessage::SetLSTableMsg (nbrCostsVec neighborCosts)
 {
   if (m_messageType == 0)
     {
@@ -473,7 +476,7 @@ LSMessage::SetLSTableMsg (std::vector<Ipv4Address> neighbors)
     {
       NS_ASSERT (m_messageType == LS_TABLE_MSG);
     }
-  m_message.lsTableMsg.neighbors = neighbors;
+  m_message.lsTableMsg.neighborCosts = neighborCosts;
 }
 
 LSMessage::LSTableMsg
