@@ -196,14 +196,15 @@ LSRoutingProtocol::RouteOutput (Ptr<Packet> packet, const Ipv4Header &header, Pt
     Ptr<Ipv4Route> ipv4Route = 0;
     RoutingTableEntry entry;
 
-    if (SearchTable (entry, header.GetDestination ())) { // TODO find out if entry.nextHopAddr can == != m_mainAddress
+    if (SearchTable (entry, header.GetDestination ())) {
+        // DEBUG_LOG ("Found route in table");
         ipv4Route = Create<Ipv4Route> ();
         ipv4Route->SetDestination (header.GetDestination ());
         ipv4Route->SetSource (m_mainAddress);
         ipv4Route->SetGateway (entry.nextHopAddr);
         // Not 100% sure below is correct
         // ipv4Route->SetOutputDevice (outInterface); // ????
-        uint32_t interface = m_ipv4->GetInterfaceForAddress(entry.interfaceAddr);
+        int32_t interface = m_ipv4->GetInterfaceForAddress(entry.interfaceAddr);
         ipv4Route->SetOutputDevice(m_ipv4->GetNetDevice (interface));
     } else {
         Ptr<Ipv4Route> ipv4Route = m_staticRouting->RouteOutput (packet, header, outInterface, sockerr);
@@ -215,7 +216,6 @@ LSRoutingProtocol::RouteOutput (Ptr<Packet> packet, const Ipv4Header &header, Pt
     } else {
         DEBUG_LOG ("No Route to destination: " << header.GetDestination ());
     }
-
     return ipv4Route;
 }
 
@@ -249,13 +249,13 @@ LSRoutingProtocol::RouteInput  (Ptr<const Packet> packet,
     Ptr<Ipv4Route> ipv4Route;
     RoutingTableEntry entry;
     if (SearchTable (entry, header.GetDestination ())) {
-        DEBUG_LOG ("Trying to forward packet from " << m_mainAddress << " to " << header.GetDestination ());
+        DEBUG_LOG ("Forwarding packet from " << m_mainAddress << " to " << entry.nextHopAddr);
 
         ipv4Route = Create<Ipv4Route> ();
         ipv4Route->SetDestination (header.GetDestination ());
         ipv4Route->SetSource (m_mainAddress);
         ipv4Route->SetGateway (entry.nextHopAddr);
-        uint32_t interface = m_ipv4->GetInterfaceForAddress(entry.interfaceAddr);
+        int32_t interface = m_ipv4->GetInterfaceForAddress(entry.interfaceAddr);
         ipv4Route->SetOutputDevice (m_ipv4->GetNetDevice (interface));
 
         // UnicastForwardCallback = void ucb(Ptr<Ipv4Route>, Ptr<const Packet>, const Ipv4Header &)
@@ -927,12 +927,12 @@ LSRoutingProtocol::Dijkstra() {
         //    std::cout << "Updating cost\n";
             e->second.nextHopAddr = nextHopAddr;
             e->second.nextHopNum = nextHopAddr.Get();
-            e->second.interfaceAddr = m_neighborTable.find(ReverseLookup(neighbors[j]))->second.interfaceAddr;
+            e->second.interfaceAddr = m_neighborTable.find(ReverseLookup(nextHopAddr))->second.interfaceAddr;
             e->second.cost = new_cost;
         } else {
          //   std::cout << "new rt entry\n";
             RoutingTableEntry rte = { neighbors[j], nextHopAddr.Get(), nextHopAddr,
-               m_neighborTable.find(ReverseLookup(neighbors[j]))->second.interfaceAddr, new_cost};
+               m_neighborTable.find(ReverseLookup(nextHopAddr))->second.interfaceAddr, new_cost};
                //add the new entry to our routing table
             m_routingTable.insert(std::make_pair(ReverseLookup(neighbors[j]), rte));
         }
