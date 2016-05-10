@@ -237,6 +237,7 @@ LSRoutingProtocol::RouteInput  (Ptr<const Packet> packet,
     // Check for local delivery
     uint32_t interfaceNum = m_ipv4->GetInterfaceForDevice (inputDev);
     if (m_ipv4->IsDestinationAddress (destinationAddress, interfaceNum)) {
+        DEBUG_LOG ( "[RouteInput] Local Delivery")
         if (!lcb.IsNull ()) {
             lcb (packet, header, interfaceNum);
             return true;
@@ -248,11 +249,11 @@ LSRoutingProtocol::RouteInput  (Ptr<const Packet> packet,
     // Forward using LS routing table
     Ptr<Ipv4Route> ipv4Route;
     RoutingTableEntry entry;
-    if (SearchTable (entry, header.GetDestination ())) {
-        DEBUG_LOG ("Forwarding packet from " << m_mainAddress << " to " << entry.nextHopAddr);
+    if (SearchTable (entry, destinationAddress)) {
+        DEBUG_LOG ("[RouteInput] Forwarding packet from " << m_mainAddress << " to " << entry.nextHopAddr);
 
         ipv4Route = Create<Ipv4Route> ();
-        ipv4Route->SetDestination (header.GetDestination ());
+        ipv4Route->SetDestination (destinationAddress);
         ipv4Route->SetSource (m_mainAddress);
         ipv4Route->SetGateway (entry.nextHopAddr);
         int32_t interface = m_ipv4->GetInterfaceForAddress(entry.interfaceAddr);
