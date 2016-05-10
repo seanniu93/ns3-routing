@@ -649,11 +649,12 @@ LSRoutingProtocol::ProcessLSTableMessage (LSMessage lsMessage) {
     std::vector<Ipv4Address> neighborAddrs = lsMessage.GetLSTableMsg().neighbors;
     uint32_t seqNum = lsMessage.GetSequenceNumber();
 
-    TRAFFIC_LOG("Received from: " << ReverseLookup(lsMessage.GetOriginatorAddress()) << "\n Neighbors: " );
+    std::stringstream ss;
     for (unsigned i = 0; i < neighborAddrs.size(); ++i) {
-        std::cout << neighborAddrs[i] << " " << ReverseLookup(neighborAddrs[i]) << '\n';
+        ss << neighborAddrs[i] << " " << ReverseLookup(neighborAddrs[i]) << '\n';
     }
-    std::cout << '\n';
+    ss << '\n';
+    TRAFFIC_LOG("Received from: " << ReverseLookup(lsMessage.GetOriginatorAddress()) << "\n Neighbors: \n" << ss.str() );
 
     // if we have not seen the packet before, broadcast it
     Ipv4Address fromAddr = lsMessage.GetOriginatorAddress();
