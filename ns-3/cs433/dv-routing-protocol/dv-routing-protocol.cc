@@ -300,7 +300,7 @@ void
 DVRoutingProtocol::SendHello () {
   Ipv4Address destAddress = ResolveNodeIpAddress (0); // TODO remove this and "hello"
   uint32_t sequenceNumber = GetNextSequenceNumber ();
-//  TRAFFIC_LOG ("Broadcasting HELLO_REQ, SequenceNumber: " << sequenceNumber);
+  TRAFFIC_LOG ("Broadcasting HELLO_REQ, SequenceNumber: " << sequenceNumber);
 //    //Ptr<HelloRequest> helloRequest = Create<HelloRequest> (sequenceNumber, Simulator::Now(), destAddress, "hello", m_helloTimeout);
    Ptr<Packet> packet = Create<Packet> ();
    DVMessage dvMessage = DVMessage (DVMessage::HELLO_REQ, sequenceNumber, 1, m_mainAddress);
@@ -448,8 +448,7 @@ DVRoutingProtocol::ProcessHelloReq (DVMessage dvMessage, Ptr<Socket> socket)
       ERROR_LOG ("Didn't find socket in m_socketAddresses");
     }
 
-   //TRAFFIC_LOG( "Received HelloReq, From Neighbor: " << fromNode << ", with Addr: " << neighAddr << ", InterfaceAddr: " << interfaceAddr << '\n');
-
+   TRAFFIC_LOG( "Received HelloReq, From Neighbor: " << fromNode << ", with Addr: " << neighAddr << ", InterfaceAddr: " << interfaceAddr << '\n');
 
   ntEntry e = m_neighborTable.find( fromNode );
 

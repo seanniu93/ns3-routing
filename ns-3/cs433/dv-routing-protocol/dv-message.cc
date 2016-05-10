@@ -16,6 +16,7 @@
 
 #include "ns3/dv-message.h"
 #include "ns3/log.h"
+#include "ns3/timer.h"
 
 using namespace ns3;
 
