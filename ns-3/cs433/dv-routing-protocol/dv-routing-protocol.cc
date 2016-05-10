@@ -27,6 +27,8 @@
 #include "ns3/uinteger.h"
 #include "ns3/test-result.h"
 #include <sys/time.h>
+#include <vector>
+#include <limits>
 
 using namespace ns3;
 
@@ -49,6 +51,11 @@ DVRoutingProtocol::GetTypeId (void)
                  TimeValue (MilliSeconds (2000)),
                  MakeTimeAccessor (&DVRoutingProtocol::m_pingTimeout),
                  MakeTimeChecker ())
+  .AddAttribute ("HelloTimeout",
+                 "Timeout value for HELLO in milliseconds",
+                 TimeValue (MilliSeconds (6000)),
+                 MakeTimeAccessor (&DVRoutingProtocol::m_helloTimeout),
+                 MakeTimeChecker ())
   .AddAttribute ("MaxTTL",
                  "Maximum TTL value for DV packets",
                  UintegerValue (16),
@@ -59,7 +66,7 @@ DVRoutingProtocol::GetTypeId (void)
 }
 
 DVRoutingProtocol::DVRoutingProtocol ()
-  : m_auditPingsTimer (Timer::CANCEL_ON_DESTROY)
+  : m_auditPingsTimer (Timer::CANCEL_ON_DESTROY), m_auditHellosTimer (Timer::CANCEL_ON_DESTROY)
 {
   RandomVariable random;
   SeedManager::SetSeed (time (NULL));
@@ -89,7 +96,8 @@ DVRoutingProtocol::DoDispose ()
 
   // Cancel timers
   m_auditPingsTimer.Cancel ();
- 
+  m_auditHellosTimer.Cancel ();
+
   m_pingTracker.clear (); 
 
   CommRoutingProtocol::DoDispose ();
@@ -163,10 +171,11 @@ DVRoutingProtocol::DoStart ()
     }
   // Configure timers
   m_auditPingsTimer.SetFunction (&DVRoutingProtocol::AuditPings, this);
+  m_auditHellosTimer.SetFunction (&DVRoutingProtocol::AuditHellos, this);
 
   // Start timers
   m_auditPingsTimer.Schedule (m_pingTimeout);
-
+  m_auditHellosTimer.Schedule (m_helloTimeout);
 }
 
 Ptr<Ipv4Route>
@@ -288,6 +297,39 @@ DVRoutingProtocol::ProcessCommand (std::vector<std::string> tokens)
 }
 
 void
+DVRoutingProtocol::SendHello () {
+  Ipv4Address destAddress = ResolveNodeIpAddress (0); // TODO remove this and "hello"
+  uint32_t sequenceNumber = GetNextSequenceNumber ();
+  TRAFFIC_LOG ("Broadcasting HELLO_REQ, SequenceNumber: " << sequenceNumber);
+//    //Ptr<HelloRequest> helloRequest = Create<HelloRequest> (sequenceNumber, Simulator::Now(), destAddress, "hello", m_helloTimeout);
+   Ptr<Packet> packet = Create<Packet> ();
+   DVMessage dvMessage = DVMessage (DVMessage::HELLO_REQ, sequenceNumber, 1, m_mainAddress);
+   dvMessage.SetHelloReq (destAddress, "hello");
+   packet->AddHeader (dvMessage);
+   BroadcastPacket (packet);
+}
+
+// TODO: How does this need to change?
+void
+DVRoutingProtocol::SendDVTableMessage () {
+  uint32_t sequenceNumber = GetNextSequenceNumber ();
+
+  std::vector<Ipv4Address> neighborAddrs;
+  for (ntEntry i = m_neighborTable.begin (); i != m_neighborTable.end (); i++) {
+    neighborAddrs.push_back( i->second.neighborAddr );
+  }
+
+  //TRAFFIC_LOG("Sending LSTableMessage: sequence num: " << sequenceNumber << ", neighborAddrs.size: " << neighborAddrs.size());
+  //Ptr<LSTableMessage> lsTableMsg = Create<LSTableMessage> (sequenceNumber, Simulator::Now(), neighborAddrs);
+  Ptr<Packet> packet = Create<Packet> ();
+  DVMessage dvMessage = DVMessage (DVMessage::DV_TABLE_MSG, sequenceNumber, 1, m_mainAddress);
+  dvMessage.SetDVTableMsg(neighborAddrs);
+  packet->AddHeader (dvMessage);
+  BroadcastPacket (packet);
+}
+
+
+void
 DVRoutingProtocol::DumpNeighbors ()
 {
   STATUS_LOG (std::endl << "**************** Neighbor List ********************" << std::endl
@@ -331,6 +373,12 @@ DVRoutingProtocol::RecvDVMessage (Ptr<Socket> socket)
         break;
       case DVMessage::PING_RSP:
         ProcessPingRsp (dvMessage);
+        break;
+      case DVMessage::HELLO_REQ:
+        ProcessHelloReq (dvMessage, socket);
+        break;
+      case DVMessage::DV_TABLE_MSG:
+        ProcessDVTableMessage(dvMessage);
         break;
       default:
         ERROR_LOG ("Unknown Message Type!");
@@ -378,6 +426,108 @@ DVRoutingProtocol::ProcessPingRsp (DVMessage dvMessage)
     }
 }
 
+
+void
+DVRoutingProtocol::ProcessHelloReq (DVMessage dvMessage, Ptr<Socket> socket)
+{
+  // Use reverse lookup for ease of debug
+  //std::string fromNode = ReverseLookup (lsMessage.GetOriginatorAddress ());
+  //TRAFFIC_LOG ("Received HELLO_REQ, From Node: " << fromNode);
+
+  Ipv4Address neighAddr = dvMessage.GetOriginatorAddress();
+  std::string fromNode = ReverseLookup (dvMessage.GetOriginatorAddress());
+  Ipv4Address interfaceAddr;
+
+  std::map<Ptr<Socket> , Ipv4InterfaceAddress>::const_iterator i = m_socketAddresses.find(socket);
+  if (i != m_socketAddresses.end())
+    {
+      interfaceAddr = i->second.GetLocal();
+    }
+  else
+    {
+      ERROR_LOG ("Didn't find socket in m_socketAddresses");
+    }
+
+   TRAFFIC_LOG( "Received HelloReq, From Neighbor: " << fromNode << ", with Addr: " << neighAddr << ", InterfaceAddr: " << interfaceAddr << '\n');
+
+  ntEntry e = m_neighborTable.find( fromNode );
+
+  if ( e != m_neighborTable.end() ) {//neighbor was already in our table
+    e->second.lastUpdated = Simulator::Now();
+  } else {
+    //new neighbor discovered!
+
+    //add it to our immediate neighbors table
+    distanceVector emptydv;
+    NeighborTableEntry entry = { neighAddr, interfaceAddr , Simulator::Now(), emptydv };
+    m_neighborTable.insert(std::make_pair(fromNode, entry));
+
+    //also add it to the lsTable (with neighbor information for all nodes in network)
+    //see if this node is already in that table
+    dvtEntry dvte = m_dvTable.find( ReverseLookup(m_mainAddress) );
+    if ( dvte != m_dvTable.end() ) {//if this node is already in there
+      //then just add this neighbor to the neighbors vector
+      dvte->second.neighborCosts.push_back(std::make_pair(neighAddr, 1));//TODO: change cost here
+
+    } else {
+      std::vector<std::pair<Ipv4Address, uint32_t> > nbrCosts;
+      nbrCosts.push_back(std::make_pair(neighAddr, 1));  //TODO: change cost here
+      DVTableEntry dvtEntry = { nbrCosts, dvMessage.GetSequenceNumber() };
+      m_dvTable.insert(std::make_pair(ReverseLookup(m_mainAddress), dvtEntry));
+
+    }
+
+    //TODO: run Bellman Ford
+
+    SendDVTableMessage(); // neighbor table has changed, so resend neighbor info
+  }
+
+}
+
+// TODO: how does this need to change?
+void
+DVRoutingProtocol::ProcessDVTableMessage (DVMessage dvMessage) {
+    std::vector<Ipv4Address> neighborAddrs = dvMessage.GetDVTableMsg().neighbors;
+    uint32_t seqNum = dvMessage.GetSequenceNumber();
+
+//    TRAFFIC_LOG("Received from: " << ReverseLookup(dvMessage.GetOriginatorAddress()) << "\n Neighbors: " );
+//    for (unsigned i = 0; i < neighborAddrs.size(); ++i) {
+//        std::cout << neighborAddrs[i] << " " << ReverseLookup(neighborAddrs[i]) << '\n';
+//    }
+//    std::cout << '\n';
+
+    // if we have not seen the packet before, broadcast it
+    Ipv4Address fromAddr = dvMessage.GetOriginatorAddress();
+    std::string fromNode = ReverseLookup(fromAddr);
+
+    dvtEntry entry = m_dvTable.find(fromNode);
+
+//    TRAFFIC_LOG("Sequence Number of this entry: " << entry->second.sequenceNumber << " SeqNum of new packet: " << seqNum);
+
+    // Technically, I think we don't need the seqNum for dv because there is not
+    // way an old packet will arrive after a newer one if the messages are only neighbor-to-neighbor
+    if (entry == m_dvTable.end() || seqNum > entry->second.sequenceNumber) {
+
+      //if it was already in the table, delete it first
+      if (entry != m_dvTable.end())
+        m_dvTable.erase(entry);
+
+      // Add to DVTable
+      std::vector<std::pair<Ipv4Address, uint32_t> > neighborCosts;
+      for (int i = 0; i < neighborAddrs.size(); i++) {
+        neighborCosts.push_back(std::make_pair(neighborAddrs[i], 1)); // TODO: change cost here
+      }
+      DVTableEntry newEntry = { neighborCosts, seqNum };
+      m_dvTable.insert(std::pair<std::string, DVTableEntry>(fromNode, newEntry));
+
+      // Run Bellman Ford
+
+      // Send new packet with neighbor info
+      SendDVTableMessage();
+    }
+}
+
+
 bool
 DVRoutingProtocol::IsOwnAddress (Ipv4Address originatorAddress)
 {
@@ -415,6 +565,64 @@ DVRoutingProtocol::AuditPings ()
   // Rechedule timer
   m_auditPingsTimer.Schedule (m_pingTimeout); 
 }
+
+
+// Add "last updated" field to Neighbor Table using Simulator::Now(). 
+void
+DVRoutingProtocol::AuditHellos()
+{
+  //Broadcast a fresh HELLO message to immediate neighbors
+  SendHello ();
+  bool sendMsg = false;
+
+  // If "last updated" is more than helloTimeout seconds ago, remove it from the NeighborTable
+  for (ntEntry i = m_neighborTable.begin (); i != m_neighborTable.end (); i++) {
+      NeighborTableEntry entry = i->second;
+  //    TRAFFIC_LOG ("AUDIT HELLOS: entry.lastUpdated: " << entry.lastUpdated.GetMilliSeconds() << ", timeout: " << m_helloTimeout.GetMilliSeconds() << ", time is now: " << Simulator::Now().GetMilliSeconds());
+
+  if ( entry.lastUpdated.GetMilliSeconds() + m_helloTimeout.GetMilliSeconds() <= Simulator::Now().GetMilliSeconds()) {
+         removeDVTableLink( m_mainAddress, entry.neighborAddr );
+         m_neighborTable.erase(i);
+         sendMsg = true;
+      }
+  }
+
+  if (sendMsg) {
+      SendDVTableMessage(); // neighbor table info has changed, so resend neighbor info
+  }
+
+  // Reschedule timer
+  m_auditHellosTimer.Schedule (m_helloTimeout);
+}
+
+void
+DVRoutingProtocol::removeDVTableLink(Ipv4Address node1, Ipv4Address node2) {
+    dvtEntry entry1 = m_dvTable.find( ReverseLookup(node1) );
+    dvtEntry entry2 = m_dvTable.find( ReverseLookup(node2) );
+
+    if (entry1 != m_dvTable.end()) {
+        std::vector<std::pair<Ipv4Address, uint32_t> > pairs1 = entry1->second.neighborCosts;
+        for (unsigned i = 0; i < pairs1.size(); i++) {
+            if (pairs1[i].first == node2) {
+                pairs1.erase(pairs1.begin() + i);
+            }
+        }
+    }
+
+    if (entry2 != m_dvTable.end()) {
+        std::vector<std::pair<Ipv4Address, uint32_t> > pairs2 = entry2->second.neighborCosts;
+        for (unsigned i = 0; i < pairs2.size(); i++) {
+            if (pairs2[i].first == node1) {
+                pairs2.erase(pairs2.begin() + i);
+            }
+        }
+    }
+}
+
+
+
+
+
 
 uint32_t
 DVRoutingProtocol::GetNextSequenceNumber ()

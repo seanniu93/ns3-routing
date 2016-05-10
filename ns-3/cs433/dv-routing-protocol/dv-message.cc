@@ -16,6 +16,7 @@
 
 #include "ns3/dv-message.h"
 #include "ns3/log.h"
+#include "ns3/timer.h"
 
 using namespace ns3;
 
@@ -68,6 +69,12 @@ DVMessage::GetSerializedSize (void) const
       case PING_RSP:
         size += m_message.pingRsp.GetSerializedSize ();
         break;
+      case HELLO_REQ:
+        size += m_message.helloReq.GetSerializedSize ();
+        break;
+      case DV_TABLE_MSG:
+        size += m_message.dvTableMsg.GetSerializedSize ();
+        break;
       default:
         NS_ASSERT (false);
     }
@@ -92,6 +99,11 @@ DVMessage::Print (std::ostream &os) const
       case PING_RSP:
         m_message.pingRsp.Print (os);
         break;
+      case HELLO_REQ:
+        m_message.helloReq.Print (os);
+        break;
+      case DV_TABLE_MSG:
+        m_message.dvTableMsg.Print (os);
       default:
         break;  
     }
@@ -117,6 +129,12 @@ DVMessage::Serialize (Buffer::Iterator start) const
         break;
       default:
         NS_ASSERT (false);   
+      case HELLO_REQ:
+        m_message.helloReq.Serialize (i);
+        break;
+      case DV_TABLE_MSG:
+        m_message.dvTableMsg.Serialize (i);
+        break;
     }
 }
 
@@ -139,6 +157,12 @@ DVMessage::Deserialize (Buffer::Iterator start)
         break;
       case PING_RSP:
         size += m_message.pingRsp.Deserialize (i);
+        break;
+      case HELLO_REQ:
+        size += m_message.helloReq.Deserialize (i);
+        break;
+      case DV_TABLE_MSG:
+        m_message.dvTableMsg.Deserialize (i);
         break;
       default:
         NS_ASSERT (false);
@@ -260,6 +284,125 @@ DVMessage::GetPingRsp ()
   return m_message.pingRsp;
 }
 
+
+/* HELLO_REQ */
+uint32_t
+DVMessage::HelloReq::GetSerializedSize (void) const
+{
+  uint32_t size;
+  size = IPV4_ADDRESS_SIZE + sizeof(uint16_t) + helloMessage.length();
+  return size;
+}
+
+void
+DVMessage::HelloReq::Print (std::ostream &os) const
+{
+  os << "HelloReq:: Message: " << helloMessage << "\n";
+}
+
+void
+DVMessage::HelloReq::Serialize (Buffer::Iterator &start) const
+{
+  start.WriteHtonU32 (destinationAddress.Get ());
+  start.WriteU16 (helloMessage.length ());
+  start.Write ((uint8_t *) (const_cast<char*> (helloMessage.c_str())), helloMessage.length());
+}
+
+uint32_t
+DVMessage::HelloReq::Deserialize (Buffer::Iterator &start)
+{
+  destinationAddress = Ipv4Address (start.ReadNtohU32 ());
+  uint16_t length = start.ReadU16 ();
+  char* str = (char*) malloc (length);
+  start.Read ((uint8_t*)str, length);
+  helloMessage = std::string (str, length);
+  free (str);
+  return HelloReq::GetSerializedSize ();
+}
+
+void
+DVMessage::SetHelloReq (Ipv4Address destinationAddress, std::string helloMessage)
+{
+  if (m_messageType == 0)
+    {
+      m_messageType = HELLO_REQ;
+    }
+  else
+    {
+      NS_ASSERT (m_messageType == HELLO_REQ);
+    }
+  m_message.helloReq.destinationAddress = destinationAddress;
+  m_message.helloReq.helloMessage = helloMessage;
+}
+
+DVMessage::HelloReq
+DVMessage::GetHelloReq ()
+{
+  return m_message.helloReq;
+}
+
+/* DV_TABLE_MSG */
+
+uint32_t
+DVMessage::DVTableMsg::GetSerializedSize (void) const
+{
+  uint32_t size;
+  size = sizeof(uint16_t) + IPV4_ADDRESS_SIZE * neighbors.size();
+  return size;
+}
+
+void
+DVMessage::DVTableMsg::Print (std::ostream &os) const
+{
+  os << "DVTableMsg:: Neighbors: ";
+  for(unsigned i = 0; i < neighbors.size(); i++) {
+      os << neighbors[i] << ", ";
+  }
+  os << "\b\b\n";
+
+
+}
+
+void
+DVMessage::DVTableMsg::Serialize (Buffer::Iterator &start) const
+{
+  start.WriteU16 (neighbors.size ());
+  for(unsigned i = 0; i < neighbors.size(); i++) {
+    start.WriteHtonU32 (neighbors[i].Get ());
+  }
+}
+
+uint32_t
+DVMessage::DVTableMsg::Deserialize (Buffer::Iterator &start)
+{
+
+  uint16_t nOfNeighbors = start.ReadU16 ();
+
+  for (unsigned i = 0; i < nOfNeighbors; i++) {
+    neighbors.push_back( Ipv4Address (start.ReadNtohU32 ()) );
+  }
+  return DVTableMsg::GetSerializedSize ();
+}
+
+void
+DVMessage::SetDVTableMsg (std::vector<Ipv4Address> neighbors)
+{
+  if (m_messageType == 0)
+    {
+      m_messageType = DV_TABLE_MSG;
+    }
+  else
+    {
+      NS_ASSERT (m_messageType == DV_TABLE_MSG);
+    }
+  m_message.dvTableMsg.neighbors = neighbors;
+}
+
+DVMessage::DVTableMsg
+DVMessage::GetDVTableMsg ()
+{
+  return m_message.dvTableMsg;
+}
 
 //
 //

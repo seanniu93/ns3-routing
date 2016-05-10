@@ -21,6 +21,8 @@
 #include "ns3/ipv4-address.h"
 #include "ns3/packet.h"
 #include "ns3/object.h"
+#include <ns3/nstime.h>
+#include <vector>
 
 using namespace ns3;
 
@@ -38,6 +40,8 @@ class DVMessage : public Header
         PING_REQ = 1,
         PING_RSP = 2,
         // Define extra message types when needed       
+        HELLO_REQ = 3,
+        DV_TABLE_MSG = 4,
       };
 
     DVMessage (DVMessage::MessageType messageType, uint32_t sequenceNumber, uint8_t ttl, Ipv4Address originatorAddress);
@@ -128,12 +132,35 @@ class DVMessage : public Header
         std::string pingMessage;
       };
 
+    struct HelloReq
+      {
+        void Print (std::ostream &os) const;
+        uint32_t GetSerializedSize (void) const;
+        void Serialize (Buffer::Iterator &start) const;
+        uint32_t Deserialize (Buffer::Iterator &start);
+        // Payload
+        Ipv4Address destinationAddress;
+        std::string helloMessage;
+        Time timeout;
+      };
 
+    struct DVTableMsg
+      {
+        void Print (std::ostream &os) const;
+        uint32_t GetSerializedSize (void) const;
+        void Serialize (Buffer::Iterator &start) const;
+        uint32_t Deserialize (Buffer::Iterator &start);
+        // Payload
+        std::vector<Ipv4Address> neighbors;
+      };
+      
   private:
     struct
       {
         PingReq pingReq;
         PingRsp pingRsp;
+        HelloReq helloReq;
+        DVTableMsg dvTableMsg;
       } m_message;
     
   public:
@@ -158,6 +185,14 @@ class DVMessage : public Header
      *  \param message Payload String
      */
     void SetPingRsp (Ipv4Address destinationAddress, std::string message);
+
+    /* Hello Req */
+    HelloReq GetHelloReq ();
+    void SetHelloReq (Ipv4Address, std::string);
+
+    /* DV Table Msg */
+    DVTableMsg GetDVTableMsg ();
+    void SetDVTableMsg (std::vector<Ipv4Address>);
 
 }; // class DVMessage
 

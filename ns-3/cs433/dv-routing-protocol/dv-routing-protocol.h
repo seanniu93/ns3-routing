@@ -27,6 +27,8 @@
 #include "ns3/timer.h"
 
 #include "ns3/ping-request.h"
+#include "ns3/hello-request.h"
+#include "ns3/dv-table-msg.h"
 #include "ns3/comm-routing-protocol.h"
 #include "ns3/dv-message.h"
 
@@ -88,10 +90,19 @@ class DVRoutingProtocol : public CommRoutingProtocol
     void RecvDVMessage (Ptr<Socket> socket);
     void ProcessPingReq (DVMessage DVMessage);
     void ProcessPingRsp (DVMessage DVMessage);
+    void ProcessHelloReq (DVMessage dvMessage, Ptr<Socket> socket);
+    void ProcessHelloRsp (DVMessage dvMessage, Ptr<Socket> socket);
+    void ProcessDVTableMessage (DVMessage dvMessage);
+
+    // void BellmanFord();
+
+    void SendHello ();
+    void SendDVTableMessage ();
 
     // Periodic Audit
     void AuditPings ();
-  
+    void AuditHellos ();  
+
     // From Ipv4RoutingProtocol
 
     /**
@@ -218,7 +229,7 @@ class DVRoutingProtocol : public CommRoutingProtocol
      * \param ipv4Address IP address.
      */
     bool IsOwnAddress (Ipv4Address originatorAddress);
-
+    void removeDVTableLink(Ipv4Address, Ipv4Address);
 
   private:
     std::map< Ptr<Socket>, Ipv4InterfaceAddress > m_socketAddresses;
@@ -226,6 +237,7 @@ class DVRoutingProtocol : public CommRoutingProtocol
     Ptr<Ipv4StaticRouting> m_staticRouting;
     Ptr<Ipv4> m_ipv4;
     Time m_pingTimeout;
+    Time m_helloTimeout;
     uint8_t m_maxTTL;
     uint16_t m_dvPort;
     uint32_t m_currentSequenceNumber;
@@ -233,8 +245,47 @@ class DVRoutingProtocol : public CommRoutingProtocol
     std::map<Ipv4Address, uint32_t> m_addressNodeMap;
     // Timers
     Timer m_auditPingsTimer;
+    Timer m_auditHellosTimer;
     // Ping tracker
     std::map<uint32_t, Ptr<PingRequest> > m_pingTracker;
+
+
+    typedef std::map<std::string, uint32_t> distanceVector;
+
+    // Why do we need both of these?
+    distanceVector m_dv;    // Cost to all destinations
+    distanceVector m_costs; // Cost to each neighbor
+
+    struct RoutingTableEntry {
+      Ipv4Address destAddr;
+      uint32_t nextHopNum;
+      Ipv4Address nextHopAddr;
+      Ipv4Address interfaceAddr;
+      uint32_t cost;
+    };
+
+    struct NeighborTableEntry {
+      Ipv4Address neighborAddr;
+      Ipv4Address interfaceAddr;
+      Time lastUpdated;
+    //  uint32_t cost;
+      distanceVector dv;
+    };
+
+    // Remove this!
+    struct DVTableEntry {
+      std::vector<std::pair<Ipv4Address, uint32_t> > neighborCosts;
+      uint32_t sequenceNumber; // I don't think we need this for the DV algorithm
+    };
+
+    std::map<std::string, NeighborTableEntry> m_neighborTable;
+    std::map<std::string, RoutingTableEntry> m_routingTable;
+    std::map<std::string, DVTableEntry> m_dvTable;
+
+    typedef std::map<std::string, NeighborTableEntry>::iterator ntEntry;
+    typedef std::map<std::string, RoutingTableEntry>::iterator rtEntry;
+    typedef std::map<std::string, DVTableEntry>::iterator dvtEntry;
+
 };
 
 #endif
