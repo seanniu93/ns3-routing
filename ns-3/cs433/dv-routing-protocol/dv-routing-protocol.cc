@@ -467,18 +467,18 @@ DVRoutingProtocol::DumpRoutingTable ()
 {
   STATUS_LOG (std::endl << "**************** Route Table ********************" << std::endl
               << "DestNumber\t\tDestAddr\t\tNextHopNumber\t\tNextHopAddr\t\tInterfaceAddr\t\tCost");
-	
+
       for (rtEntry i = m_routingTable.begin (); i != m_routingTable.end (); i++)
-	{
-	    RoutingTableEntry entry = i->second;
+        {
+            RoutingTableEntry entry = i->second;
             std::string fromNode = ReverseLookup (entry.destAddr);
 
-	    PRINT_LOG (fromNode << "\t\t" << entry.destAddr << "\t\t" << entry.nextHopNum << "\t\t"
-	       << entry.nextHopAddr << "\t\t" << entry.interfaceAddr << "\t\t\t" << entry.cost << std::endl);
+            PRINT_LOG (fromNode << "\t\t" << entry.destAddr << "\t\t" << entry.nextHopNum << "\t\t"
+               << entry.nextHopAddr << "\t\t" << entry.interfaceAddr << "\t\t\t" << entry.cost << std::endl);
 
-	    checkRouteTableEntry (fromNode, entry.destAddr, entry.nextHopNum, entry.nextHopAddr, 
-	        entry.interfaceAddr, entry.cost);
-	}
+            checkRouteTableEntry (fromNode, entry.destAddr, entry.nextHopNum, entry.nextHopAddr,
+                entry.interfaceAddr, entry.cost);
+        }
 
   PRINT_LOG ("");
 
@@ -783,33 +783,33 @@ DVRoutingProtocol::BellmanFord(distanceVector &ndv) {
             //if (dest != j->first) {
             uint32_t cost_to_neighbor = j->second;
 
-	    NeighborTableEntry entry = m_neighborTable.find(j->first)->second;
+            NeighborTableEntry entry = m_neighborTable.find(j->first)->second;
 
             if ( entry.dv.empty() ) continue;
             
-	    distanceVector::iterator neighDest = entry.dv.find(dest);
+            distanceVector::iterator neighDest = entry.dv.find(dest);
             // std::cout << "    trying to find "  << dest << " in " << j->first << " DV...\n";
 
-	    // If the neighbor can reach the destination, calculate the cost
+            // If the neighbor can reach the destination, calculate the cost
         if (neighDest == entry.dv.end() )
            continue;
 
         uint32_t current;
         uint32_t neighbor_to_dest = neighDest->second;
-	    if (neighbor_to_dest < std::numeric_limits<int>::max() - cost_to_neighbor) {
-		  current = cost_to_neighbor + neighbor_to_dest;
+            if (neighbor_to_dest < std::numeric_limits<int>::max() - cost_to_neighbor) {
+              current = cost_to_neighbor + neighbor_to_dest;
         } else {
           current = neighbor_to_dest;
         }
 
-	    updated_value = true;
-	    // std::cout << "  Found! Dist from " << j->first << " --> cost = " << current;
+            updated_value = true;
+            // std::cout << "  Found! Dist from " << j->first << " --> cost = " << current;
             
-	    if (current < minCost) {
+            if (current < minCost) {
             // std::cout << "(new min)";
-	        minCost = current;
+                minCost = current;
             nextHop = j->first;
-	    }
+            }
             // std::cout << std::endl;
         }
 
