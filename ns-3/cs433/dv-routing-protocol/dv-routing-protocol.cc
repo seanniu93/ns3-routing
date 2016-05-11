@@ -183,55 +183,101 @@ DVRoutingProtocol::DoStart ()
 Ptr<Ipv4Route>
 DVRoutingProtocol::RouteOutput (Ptr<Packet> packet, const Ipv4Header &header, Ptr<NetDevice> outInterface, Socket::SocketErrno &sockerr)
 {
-  Ptr<Ipv4Route> ipv4Route = m_staticRouting->RouteOutput (packet, header, outInterface, sockerr);
-  if (ipv4Route)
-    {
-      DEBUG_LOG ("Found route to: " << ipv4Route->GetDestination () << " via next-hop: " << ipv4Route->GetGateway () << " with source: " << ipv4Route->GetSource () << " and output device " << ipv4Route->GetOutputDevice());
+    DEBUG_LOG ("RouteOutput Called");
+    // No clue what to do with outInterface or sockerr
+    Ptr<Ipv4Route> ipv4Route = 0;
+    RoutingTableEntry entry;
+
+    if (header.GetDestination () == m_mainAddress) {
+         // DEBUG_LOG ("Found route in table");
+        Ipv4Address local = Ipv4Address("127.0.0.1");
+        ipv4Route = Create<Ipv4Route> ();
+        ipv4Route->SetDestination (header.GetDestination ());
+        ipv4Route->SetSource (m_mainAddress);
+        ipv4Route->SetGateway (local);
+        // Not 100% sure below is correct
+        // ipv4Route->SetOutputDevice (outInterface); // ????
+        int32_t interface = m_ipv4->GetInterfaceForAddress(local);
+        ipv4Route->SetOutputDevice(m_ipv4->GetNetDevice (interface));
     }
-  else
-    {
-      DEBUG_LOG ("No Route to destination: " << header.GetDestination ());
+
+    else if (SearchTable (entry, header.GetDestination ())) {
+        // DEBUG_LOG ("Found route in table");
+        ipv4Route = Create<Ipv4Route> ();
+        ipv4Route->SetDestination (header.GetDestination ());
+        ipv4Route->SetSource (m_mainAddress);
+        ipv4Route->SetGateway (entry.nextHopAddr);
+        // Not 100% sure below is correct
+        // ipv4Route->SetOutputDevice (outInterface); // ????
+        int32_t interface = m_ipv4->GetInterfaceForAddress(entry.interfaceAddr);
+        ipv4Route->SetOutputDevice(m_ipv4->GetNetDevice (interface));
     }
-  return ipv4Route;
+
+    else {
+        Ptr<Ipv4Route> ipv4Route = m_staticRouting->RouteOutput (packet, header, outInterface, sockerr);
+    }
+
+    if (ipv4Route) {
+        DEBUG_LOG ("Found route to: " << ipv4Route->GetDestination () << " via next-hop: " << ipv4Route->GetGateway ()
+                   << " with source: " << ipv4Route->GetSource () << " and output device " << ipv4Route->GetOutputDevice());
+    } else {
+        DEBUG_LOG ("No Route to destination: " << header.GetDestination ());
+    }
+    return ipv4Route;
 }
 
 bool 
 DVRoutingProtocol::RouteInput  (Ptr<const Packet> packet, 
-  const Ipv4Header &header, Ptr<const NetDevice> inputDev,                            
-  UnicastForwardCallback ucb, MulticastForwardCallback mcb,             
-  LocalDeliverCallback lcb, ErrorCallback ecb)
+                                const Ipv4Header &header, Ptr<const NetDevice> inputDev,
+                                UnicastForwardCallback ucb, MulticastForwardCallback mcb,
+                                LocalDeliverCallback lcb, ErrorCallback ecb)
 {
-  Ipv4Address destinationAddress = header.GetDestination ();
-  Ipv4Address sourceAddress = header.GetSource ();
+    DEBUG_LOG ("RouteInput Called");
+    Ipv4Address destinationAddress = header.GetDestination ();
+    Ipv4Address sourceAddress = header.GetSource ();
 
-  // Drop if packet was originated by this node
-  if (IsOwnAddress (sourceAddress) == true)
-    {
-      return true;
+    // Drop if packet was originated by this node
+    if (IsOwnAddress (sourceAddress) == true) {
+        return true;
     }
 
-  // Check for local delivery
-  uint32_t interfaceNum = m_ipv4->GetInterfaceForDevice (inputDev);
-  if (m_ipv4->IsDestinationAddress (destinationAddress, interfaceNum))
-    {
-      if (!lcb.IsNull ())
-        {
-          lcb (packet, header, interfaceNum);
-          return true;
-        }
-      else
-        {
-          return false;
+    // Check for local delivery
+    uint32_t interfaceNum = m_ipv4->GetInterfaceForDevice (inputDev);
+    if (m_ipv4->IsDestinationAddress (destinationAddress, interfaceNum)) {
+        DEBUG_LOG ( "[RouteInput] Local Delivery")
+        if (!lcb.IsNull ()) {
+            lcb (packet, header, interfaceNum);
+            return true;
+        } else {
+            return false;
         }
     }
 
-  // Check static routing table
-  if (m_staticRouting->RouteInput (packet, header, inputDev, ucb, mcb, lcb, ecb))
-    {
-      return true;
+    // Forward using LS routing table
+    Ptr<Ipv4Route> ipv4Route;
+    RoutingTableEntry entry;
+    if (SearchTable (entry, destinationAddress)) {
+        DEBUG_LOG ("[RouteInput] Forwarding packet from " << m_mainAddress << " to " << entry.nextHopAddr);
+
+        ipv4Route = Create<Ipv4Route> ();
+        ipv4Route->SetDestination (destinationAddress);
+        ipv4Route->SetSource (m_mainAddress);
+        ipv4Route->SetGateway (entry.nextHopAddr);
+        int32_t interface = m_ipv4->GetInterfaceForAddress(entry.interfaceAddr);
+        ipv4Route->SetOutputDevice (m_ipv4->GetNetDevice (interface));
+
+        // UnicastForwardCallback = void ucb(Ptr<Ipv4Route>, Ptr<const Packet>, const Ipv4Header &)
+        ucb (ipv4Route, packet, header);
+        return true;
     }
-  DEBUG_LOG ("Cannot forward packet. No Route to destination: " << header.GetDestination ());
-  return false;
+
+    // Check static routing table
+    else if (m_staticRouting->RouteInput (packet, header, inputDev, ucb, mcb, lcb, ecb)) {
+        return true;
+    }
+
+    DEBUG_LOG ("Cannot forward packet. No Route to destination: " << header.GetDestination ());
+    return false;
 }
 
 void
@@ -745,9 +791,20 @@ DVRoutingProtocol::BellmanFord(distanceVector &ndv) {
         //TRAFFIC_LOG("Sending DV table");
         SendDVTableMessage();
     }
-
     DumpRoutingTable();
+}
 
+bool
+DVRoutingProtocol::SearchTable (RoutingTableEntry& out_entry, Ipv4Address dest)
+{
+    // Get the iterator at "dest" position
+    std::string node = ReverseLookup(dest);
+    std::map<std::string, RoutingTableEntry>::iterator it = m_routingTable.find(node);
+    if (it == m_routingTable.end()) {
+         return false;
+    }
+    out_entry = it->second;
+    return true;
 }
 
 uint32_t

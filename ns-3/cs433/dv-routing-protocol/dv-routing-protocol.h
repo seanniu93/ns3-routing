@@ -289,6 +289,7 @@ class DVRoutingProtocol : public CommRoutingProtocol
     void DumpNeighborDV(NeighborTableEntry);
     void BellmanFord (distanceVector&);
 
+    bool SearchTable (RoutingTableEntry& out_entry, Ipv4Address dest);
 };
 
 #endif
