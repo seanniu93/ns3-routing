@@ -701,7 +701,7 @@ DVRoutingProtocol::BellmanFord(distanceVector &ndv) {
             }
         }
     }
-    if (updated_value) {
+    if (sendDV) {
         //TRAFFIC_LOG("Sending DV table");
         SendDVTableMessage();
     }
