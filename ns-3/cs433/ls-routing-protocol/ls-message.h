@@ -158,7 +158,7 @@ class LSMessage : public Header
         Ipv4Address destinationAddress;
         std::string helloMessage;
       };
-*/
+*/  typedef std::vector<std::pair<Ipv4Address, uint32_t> > nbrCostsVec;
     struct LSTableMsg
       {
         void Print (std::ostream &os) const;
@@ -166,7 +166,7 @@ class LSMessage : public Header
         void Serialize (Buffer::Iterator &start) const;
         uint32_t Deserialize (Buffer::Iterator &start);
         // Payload
-        std::vector<Ipv4Address> neighbors;
+        nbrCostsVec neighborCosts;
       };
 
   private:
@@ -217,7 +217,9 @@ class LSMessage : public Header
     /* LS Table Msg */
     LSTableMsg GetLSTableMsg ();
 
-    void SetLSTableMsg (std::vector<Ipv4Address> neighbors);
+    void SetLSTableMsg (nbrCostsVec neighborCosts);
+
+
 
 }; // class LSMessage
 
