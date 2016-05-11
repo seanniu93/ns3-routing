@@ -762,7 +762,7 @@ DVRoutingProtocol::BellmanFord(distanceVector &ndv) {
         std::string nextHop;
 
         // create a new routing table entry
-       //check if it's ourselves
+        //check if it's ourselves
         if (dest == ReverseLookup(m_mainAddress)) {
             RoutingTableEntry nodeEntry;
             nodeEntry.destAddr = m_mainAddress;
@@ -785,30 +785,30 @@ DVRoutingProtocol::BellmanFord(distanceVector &ndv) {
 
             NeighborTableEntry entry = m_neighborTable.find(j->first)->second;
 
-            if ( entry.dv.empty() ) continue;
+            if ( entry.dv.empty() )
+                continue;
             
             distanceVector::iterator neighDest = entry.dv.find(dest);
             // std::cout << "    trying to find "  << dest << " in " << j->first << " DV...\n";
 
             // If the neighbor can reach the destination, calculate the cost
-        if (neighDest == entry.dv.end() )
-           continue;
+            if (neighDest == entry.dv.end() )
+                continue;
 
-        uint32_t current;
-        uint32_t neighbor_to_dest = neighDest->second;
+            uint32_t current;
+            uint32_t neighbor_to_dest = neighDest->second;
             if (neighbor_to_dest < std::numeric_limits<int>::max() - cost_to_neighbor) {
-              current = cost_to_neighbor + neighbor_to_dest;
-        } else {
-          current = neighbor_to_dest;
-        }
-
+                current = cost_to_neighbor + neighbor_to_dest;
+            } else {
+                current = neighbor_to_dest;
+            }
             updated_value = true;
             // std::cout << "  Found! Dist from " << j->first << " --> cost = " << current;
             
             if (current < minCost) {
-            // std::cout << "(new min)";
+                // std::cout << "(new min)";
                 minCost = current;
-            nextHop = j->first;
+                nextHop = j->first;
             }
             // std::cout << std::endl;
         }
