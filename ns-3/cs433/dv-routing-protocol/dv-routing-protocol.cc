@@ -406,7 +406,8 @@ DVRoutingProtocol::SendDVTableMessage () {
       Ipv4Address destAddr = ResolveNodeIpAddress(std::atoi(dest.c_str()));
       rtEntry rte = m_routingTable.find(dest);
 
-      if (rte != m_routingTable.end() &&
+      if (destAddr == m_neighborTable.find(i->first)->second.neighborAddr &&
+          rte != m_routingTable.end() &&
           rte->second.nextHopAddr == destAddr) {
           // DEBUG_LOG("Poisoning " << dest);
           newdv.push_back(std::make_pair(destAddr, M_INF));
