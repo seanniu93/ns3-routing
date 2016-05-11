@@ -219,6 +219,7 @@ class DVRoutingProtocol : public CommRoutingProtocol
     // Status 
     void DumpNeighbors ();
     void DumpRoutingTable ();
+    void DumpDV();
 
   protected:
     virtual void DoStart (void);
@@ -229,7 +230,6 @@ class DVRoutingProtocol : public CommRoutingProtocol
      * \param ipv4Address IP address.
      */
     bool IsOwnAddress (Ipv4Address originatorAddress);
-    void BellmanFord ();
 
   private:
     std::map< Ptr<Socket>, Ipv4InterfaceAddress > m_socketAddresses;
@@ -273,18 +273,21 @@ class DVRoutingProtocol : public CommRoutingProtocol
     };
 
     // Remove this!
-    struct DVTableEntry {
-      std::vector<std::pair<Ipv4Address, uint32_t> > neighborCosts;
-      uint32_t sequenceNumber; // I don't think we need this for the DV algorithm
-    };
+    //struct DVTableEntry {
+    //  std::vector<std::pair<Ipv4Address, uint32_t> > neighborCosts;
+    //  uint32_t sequenceNumber; // I don't think we need this for the DV algorithm
+    //};
 
     std::map<std::string, NeighborTableEntry> m_neighborTable;
     std::map<std::string, RoutingTableEntry> m_routingTable;
-    std::map<std::string, DVTableEntry> m_dvTable;
+    //std::map<std::string, DVTableEntry> m_dvTable;
 
     typedef std::map<std::string, NeighborTableEntry>::iterator ntEntry;
     typedef std::map<std::string, RoutingTableEntry>::iterator rtEntry;
-    typedef std::map<std::string, DVTableEntry>::iterator dvtEntry;
+    //typedef std::map<std::string, DVTableEntry>::iterator dvtEntry;
+
+    void DumpNeighborDV(NeighborTableEntry);
+    void BellmanFord (distanceVector&);
 
 };
 
