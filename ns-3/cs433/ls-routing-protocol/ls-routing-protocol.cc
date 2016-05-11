@@ -551,7 +551,7 @@ LSRoutingProtocol::ProcessHelloReq (LSMessage lsMessage, Ptr<Socket> socket)
   std::string fromNode = ReverseLookup (lsMessage.GetOriginatorAddress());
   Ipv4Address interfaceAddr;
 
-  TRAFFIC_LOG ("Received HELLO_REQ, From Node: " << fromNode << " with TTL " << (unsigned)lsMessage.GetTTL());
+  // TRAFFIC_LOG ("Received HELLO_REQ, From Node: " << fromNode << " with TTL " << (unsigned)lsMessage.GetTTL());
 
   std::map<Ptr<Socket> , Ipv4InterfaceAddress>::const_iterator i = m_socketAddresses.find(socket);
   if (i != m_socketAddresses.end())
@@ -654,12 +654,7 @@ LSRoutingProtocol::ProcessLSTableMessage (LSMessage lsMessage) {
     nbrCostsVec neighborAddrs = lsMessage.GetLSTableMsg().neighborCosts;
     uint32_t seqNum = lsMessage.GetSequenceNumber();
 
-    std::stringstream ss;
-    for (unsigned i = 0; i < neighborAddrs.size(); ++i) {
-        ss << neighborAddrs[i].first << " " << ReverseLookup(neighborAddrs[i].first) << '\n';
-    }
-    ss << '\n';
-    TRAFFIC_LOG("Received LSTableMessage. " << lsMessage << "\n Neighbors: \n" << ss.str());
+    // TRAFFIC_LOG("Received LSTableMessage. " << lsMessage);
 
     // if we have not seen the packet before, broadcast it
     Ipv4Address fromAddr = lsMessage.GetOriginatorAddress();
@@ -749,23 +744,30 @@ LSRoutingProtocol::AuditHellos()
   //    TRAFFIC_LOG ("AUDIT HELLOS: entry.lastUpdated: " << entry.lastUpdated.GetMilliSeconds() << ", timeout: " << m_helloTimeout.GetMilliSeconds() << ", time is now: " << Simulator::Now().GetMilliSeconds());
 
     if ( entry.lastUpdated.GetMilliSeconds() + m_helloTimeout.GetMilliSeconds() <= Simulator::Now().GetMilliSeconds()) {
+        // std::cout << "Before removeLSTableLink " << ReverseLookup(m_mainAddress) << " to " << ReverseLookup(entry.neighborAddr);
+        // DumpLSTable();
+
         //remove missing neighbor from my my own entry in LSTable:
         //1) get my entry
         lstEntry entry1 = m_lsTable.find( ReverseLookup(m_mainAddress) );
         //2) remove neighbor form the neighborCosts vector in my entry
-        removeLSTableLink( m_mainAddress, entry1->second.neighborCosts );
+        removeLSTableLink( entry.neighborAddr, entry1->second.neighborCosts );
 
         //now, remove myself from the neighbor's entry in LSTable:
-        lstEntry entry2 = m_lsTable.find( ReverseLookup(m_mainAddress) );
-        removeLSTableLink( entry.neighborAddr, entry2->second.neighborCosts );
+        lstEntry entry2 = m_lsTable.find( ReverseLookup(entry.neighborAddr) );
+        removeLSTableLink( m_mainAddress, entry2->second.neighborCosts );
 
         //remove the neighbor from my Neighbors table
         m_neighborTable.erase(i);
         sendMsg = true;
+
+        // std::cout << "AFter removeLSTableLink " << ReverseLookup(m_mainAddress) << " to " << ReverseLookup(entry.neighborAddr);
+        // DumpLSTable();
     }
   }
 
   if (sendMsg) {
+      Dijkstra();
       SendLSTableMessage(); // neighbor table info has changed, so resend neighbor info
   }
 
@@ -783,6 +785,7 @@ LSRoutingProtocol::removeLSTableLink(Ipv4Address nodeToRemove, nbrCostsVec& vect
         }
   }
 }
+
 void
 LSRoutingProtocol::removeLSTableLink_old(Ipv4Address node1, Ipv4Address node2) {
     lstEntry entry1 = m_lsTable.find( ReverseLookup(node1) );
