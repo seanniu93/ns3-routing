@@ -35,6 +35,8 @@
 #include <vector>
 #include <map>
 
+#define M_INF std::numeric_limits<int>::max()
+
 using namespace ns3;
 
 class DVRoutingProtocol : public CommRoutingProtocol

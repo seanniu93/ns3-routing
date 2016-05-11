@@ -665,22 +665,30 @@ DVRoutingProtocol::AuditHellos()
   bool sendMsg = false;
 
   // If "last updated" is more than helloTimeout seconds ago, remove it from the NeighborTable
-  for (ntEntry i = m_neighborTable.begin (); i != m_neighborTable.end (); i++) {
+  for (ntEntry i = m_neighborTable.begin (); i != m_neighborTable.end ();) {
       NeighborTableEntry entry = i->second;
-      //TRAFFIC_LOG ("AUDIT HELLOS: entry.lastUpdated: " << entry.lastUpdated.GetMilliSeconds() << ", timeout: " << m_helloTimeout.GetMilliSeconds() << ", time is now: " << Simulator::Now().GetMilliSeconds());
+      TRAFFIC_LOG ("AUDIT HELLOS: entry.lastUpdated: " << entry.lastUpdated.GetMilliSeconds() << ", timeout: " << m_helloTimeout.GetMilliSeconds() << ", time is now: " << Simulator::Now().GetMilliSeconds());
 
       if ( entry.lastUpdated.GetMilliSeconds() + m_helloTimeout.GetMilliSeconds() <= Simulator::Now().GetMilliSeconds()) {
-          std::string nodeNumber = ReverseLookup(entry.neighborAddr);
-          m_dv.erase( nodeNumber );
-          m_costs.erase( nodeNumber );
-          m_neighborTable.erase(i);
+          std::string nodeName = ReverseLookup(entry.neighborAddr);
+          m_dv[nodeName] = M_INF;
+          //m_costs[nodeName] = M_INF;
+          //m_dv.erase( nodeNumber );
+          distanceVector::iterator it = m_costs.find(nodeName);
+          m_costs.erase( it );
+          m_neighborTable.erase( i++ );
           sendMsg = true;
+          std::cout << "Didn't hear back from " << nodeName;
+          DumpDV();
+      } else {
+         ++i;
       }
   }
 
   if (sendMsg) {
+      std::cout << "AuditHellos is about to run BellmanFord!\n";
       // run DV Algorithm
-      //BellmanFord();
+      BellmanFord(m_dv);
 
       //SendDVTableMessage();
   }
