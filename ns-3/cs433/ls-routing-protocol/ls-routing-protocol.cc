@@ -754,7 +754,7 @@ LSRoutingProtocol::AuditHellos()
   bool sendMsg = false;
 
   // If "last updated" is more than helloTimeout seconds ago, remove it from the NeighborTable
-  for (ntEntry i = m_neighborTable.begin (); i != m_neighborTable.end (); i++) {
+  for (ntEntry i = m_neighborTable.begin (); i != m_neighborTable.end ();) {
       NeighborTableEntry entry = i->second;
   //    TRAFFIC_LOG ("AUDIT HELLOS: entry.lastUpdated: " << entry.lastUpdated.GetMilliSeconds() << ", timeout: " << m_helloTimeout.GetMilliSeconds() << ", time is now: " << Simulator::Now().GetMilliSeconds());
 
@@ -773,11 +773,13 @@ LSRoutingProtocol::AuditHellos()
         removeLSTableLink( m_mainAddress, entry2->second.neighborCosts );
 
         //remove the neighbor from my Neighbors table
-        m_neighborTable.erase(i);
+        m_neighborTable.erase(i++);
         sendMsg = true;
 
         // std::cout << "AFter removeLSTableLink " << ReverseLookup(m_mainAddress) << " to " << ReverseLookup(entry.neighborAddr);
         // DumpLSTable();
+    } else {
+        ++i;
     }
   }
 
