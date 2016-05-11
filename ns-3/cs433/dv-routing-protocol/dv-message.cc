@@ -347,7 +347,7 @@ uint32_t
 DVMessage::DVTableMsg::GetSerializedSize (void) const
 {
   uint32_t size;
-  size = sizeof(uint16_t) + IPV4_ADDRESS_SIZE * neighbors.size();
+  size = sizeof(uint16_t) + (IPV4_ADDRESS_SIZE + sizeof(uint32_t)) * neighborsCosts.size();
   return size;
 }
 
@@ -356,36 +356,36 @@ DVMessage::DVTableMsg::Print (std::ostream &os) const
 {
   os << "DVTableMsg:: Neighbors: ";
   for(unsigned i = 0; i < neighbors.size(); i++) {
-      os << neighbors[i] << ", ";
+      os << neighborCosts[i].first << ":" << neighborCosts[i].second << ", ";
   }
   os << "\b\b\n";
-
-
 }
 
 void
 DVMessage::DVTableMsg::Serialize (Buffer::Iterator &start) const
 {
-  start.WriteU16 (neighbors.size ());
-  for(unsigned i = 0; i < neighbors.size(); i++) {
-    start.WriteHtonU32 (neighbors[i].Get ());
+  start.WriteU16 (neighborCosts.size ());
+  for (unsigned i = 0; i < neighborCosts.size(); i++) {
+      start.WriteHtonU32 (neighborCosts[i].first.Get ());
+      start.WriteHtonU32 (neighborCosts[i].second);
   }
 }
 
 uint32_t
 DVMessage::DVTableMsg::Deserialize (Buffer::Iterator &start)
 {
-
   uint16_t nOfNeighbors = start.ReadU16 ();
 
   for (unsigned i = 0; i < nOfNeighbors; i++) {
-    neighbors.push_back( Ipv4Address (start.ReadNtohU32 ()) );
+    Ipv4Address addr = Ipv4Address (start.ReadNtohU32 ());
+    uint32_t cost = start.ReadNtohU32 ();
+    neighborCosts.push_back( std::make_pair(addr, cost) );
   }
-  return DVTableMsg::GetSerializedSize ();
+  return LSTableMsg::GetSerializedSize ();
 }
 
 void
-DVMessage::SetDVTableMsg (std::vector<Ipv4Address> neighbors)
+DVMessage::SetDVTableMsg (nbrCostsVec neighborCosts)
 {
   if (m_messageType == 0)
     {
@@ -395,7 +395,7 @@ DVMessage::SetDVTableMsg (std::vector<Ipv4Address> neighbors)
     {
       NS_ASSERT (m_messageType == DV_TABLE_MSG);
     }
-  m_message.dvTableMsg.neighbors = neighbors;
+  m_message.dvTableMsg.neighborCosts = neighborCosts;
 }
 
 DVMessage::DVTableMsg

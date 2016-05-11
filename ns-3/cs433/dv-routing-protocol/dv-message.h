@@ -144,6 +144,7 @@ class DVMessage : public Header
         Time timeout;
       };
 
+    typedef std::vector<std::pair<Ipv4Address, uint32_t> > nbrCostsVec;
     struct DVTableMsg
       {
         void Print (std::ostream &os) const;
@@ -151,7 +152,8 @@ class DVMessage : public Header
         void Serialize (Buffer::Iterator &start) const;
         uint32_t Deserialize (Buffer::Iterator &start);
         // Payload
-        std::vector<Ipv4Address> neighbors;
+        //std::vector<Ipv4Address> neighbors;
+        nbrCostsVec neighborCosts;
       };
       
   private:

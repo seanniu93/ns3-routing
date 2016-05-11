@@ -475,7 +475,9 @@ DVRoutingProtocol::ProcessHelloReq (DVMessage dvMessage, Ptr<Socket> socket)
 
 void
 DVRoutingProtocol::ProcessDVTableMessage (DVMessage dvMessage) {
-    std::vector<Ipv4Address> neighborAddrs = dvMessage.GetDVTableMsg().neighbors;
+
+    //std::vector<std::pair<Ipv4Address, uint32_t> > 
+    std::vector<Ipv4Address> neighborAddrs = dvMessage.GetDVTableMsg().neighborCosts;
     uint32_t seqNum = dvMessage.GetSequenceNumber();
     Ipv4Address fromAddr = dvMessage.GetOriginatorAddress();
     std::string fromNode = ReverseLookup(fromAddr);
