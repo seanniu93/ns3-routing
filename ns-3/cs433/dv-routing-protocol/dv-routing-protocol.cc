@@ -292,20 +292,21 @@ DVRoutingProtocol::BroadcastPacket (Ptr<Packet> packet)
 }
 
 void
-DVRoutingProtocol::SendPacket (Ptr<Packet> packet, Ipv4Address destAddr)
+DVRoutingProtocol::SendPacket (Ptr<Packet> packet, Ipv4Address interfaceAddr)
 {
+  // DEBUG_LOG ("[SendPacket] interfaceAddr: " << interfaceAddr);
   for (std::map<Ptr<Socket> , Ipv4InterfaceAddress>::const_iterator i =
       m_socketAddresses.begin (); i != m_socketAddresses.end (); i++)
     {
+      Ipv4Address sendAddr = i->second.GetLocal ();
       Ipv4Address broadcastAddr = i->second.GetLocal ().GetSubnetDirectedBroadcast (i->second.GetMask ());
-
-      if (destAddr == broadcastAddr) {
+      // DEBUG_LOG ("[SendPacket] sendAddr: " << sendAddr);
+      if (interfaceAddr == sendAddr) {
         i->first->SendTo (packet, 0, InetSocketAddress (broadcastAddr, m_dvPort));
         return;
       }
     }
-
-   ERROR_LOG("Attempted to send packet to non-neighbor.");
+  ERROR_LOG("Attempted to send packet to non-neighbor. " << ReverseLookup(m_mainAddress) << "=>" << ReverseLookup(interfaceAddr));
 }
 
 void
@@ -412,10 +413,10 @@ DVRoutingProtocol::SendDVTableMessage () {
       }
     }
 
-    Ipv4Address neighAddr = ResolveNodeIpAddress(std::atoi(i->first.c_str()));
+    // Ipv4Address neighAddr = ResolveNodeIpAddress(std::atoi(i->first.c_str()));
     dvMessage.SetDVTableMsg(newdv);
     packet->AddHeader (dvMessage);
-    SendPacket(packet, m_neighborTable.find(i->first)->second.neighborAddr);
+    SendPacket(packet, m_neighborTable.find(i->first)->second.interfaceAddr);
   }
 }
 
@@ -597,11 +598,11 @@ DVRoutingProtocol::ProcessHelloReq (DVMessage dvMessage, Ptr<Socket> socket)
     m_dv.insert( std::make_pair(fromNode, 1) );
     m_costs.insert( std::make_pair(fromNode, 1) );
 
-    DumpDV();
+    // DumpDV();
 
     //TODO: run DV Algorithm
     BellmanFord(emptydv);
-    DumpDV();
+    // DumpDV();
     SendDVTableMessage();
   }
 }
@@ -639,16 +640,16 @@ DVRoutingProtocol::ProcessDVTableMessage (DVMessage dvMessage, Ptr<Socket> socke
         NeighborTableEntry entry = { fromAddr, interfaceAddr , Simulator::Now(), newdv };
         m_neighborTable.insert(std::make_pair(fromNode, entry));
     } else {
-        std::cout << "We are substituting our neighbor's distance vector!\n";
-        DumpNeighborDV(entry->second);
+        // std::cout << "We are substituting our neighbor's distance vector!\n";
+        // DumpNeighborDV(entry->second);
         entry->second.dv = newdv;
-        DumpNeighborDV(entry->second);
+        // DumpNeighborDV(entry->second);
     }
     
     // run DV algorithm
-    DumpDV();
+    // DumpDV();
     BellmanFord(newdv);
-    DumpDV();
+    // DumpDV();
     // Send new packet with neighbor info
     //SendDVTableMessage();
 }
@@ -714,15 +715,15 @@ DVRoutingProtocol::AuditHellos()
           m_costs.erase( it );
           m_neighborTable.erase( i++ );
           sendMsg = true;
-          std::cout << "Didn't hear back from " << nodeName;
-          DumpDV();
+          // std::cout << "Didn't hear back from " << nodeName;
+          // DumpDV();
       } else {
          ++i;
       }
   }
 
   if (sendMsg) {
-      std::cout << "AuditHellos is about to run BellmanFord!\n";
+      // std::cout << "AuditHellos is about to run BellmanFord!\n";
       // run DV Algorithm
       BellmanFord(m_dv);
 
@@ -736,14 +737,16 @@ DVRoutingProtocol::AuditHellos()
 void
 DVRoutingProtocol::BellmanFord(distanceVector &ndv) {
     TRAFFIC_LOG("RUNNING BELLMAN FORD");
+    m_routingTable.clear();
+
     for (distanceVector::iterator j = ndv.begin(); j != ndv.end(); j++) {
         std::string name = j->first;
-        std::cout << "Checking node " << name << "...";
+        // std::cout << "Checking node " << name << "...";
         if (m_dv.find(name) == m_dv.end()) {
             m_dv.insert( std::make_pair(name, std::numeric_limits<int>::max()) );
-            std::cout << "Inserted New Node " << name << '\n';
+            // std::cout << "Inserted New Node " << name << '\n';
         } else {
-          std::cout << '\n';
+          // std::cout << '\n';
         }
     }
  
@@ -770,11 +773,11 @@ DVRoutingProtocol::BellmanFord(distanceVector &ndv) {
             m_routingTable.insert(std::make_pair(ReverseLookup(m_mainAddress), nodeEntry));
             continue;
         }
-        std::cout << "Computing min dist to " << dest << std::endl;
+        // std::cout << "Computing min dist to " << dest << std::endl;
 
         //uint32_t current = std::numeric_limits<int>::max();
         for (distanceVector::iterator j = m_costs.begin(); j != m_costs.end(); j++) {
-            std::cout << "  Going through " << j->first << "'s DV...\n";
+            // std::cout << "  Going through " << j->first << "'s DV...\n";
             // (Don't try to calculate a neighbor's distance to a neighbor, since all neighbors
             // have cost = 1)
             //if (dest != j->first) {
@@ -785,40 +788,41 @@ DVRoutingProtocol::BellmanFord(distanceVector &ndv) {
             if ( entry.dv.empty() ) continue;
             
 	    distanceVector::iterator neighDest = entry.dv.find(dest);
-            std::cout << "    trying to find "  << dest << " in " << j->first << " DV...\n";
+            // std::cout << "    trying to find "  << dest << " in " << j->first << " DV...\n";
 
 	    // If the neighbor can reach the destination, calculate the cost
-            if (neighDest == entry.dv.end() )
-               continue;
+        if (neighDest == entry.dv.end() )
+           continue;
 
-            uint32_t current;
-            uint32_t neighbor_to_dest = neighDest->second;
+        uint32_t current;
+        uint32_t neighbor_to_dest = neighDest->second;
 	    if (neighbor_to_dest < std::numeric_limits<int>::max() - cost_to_neighbor) {
-		current = cost_to_neighbor + neighbor_to_dest;
-            } else { current = neighbor_to_dest;
-            }
+		  current = cost_to_neighbor + neighbor_to_dest;
+        } else {
+          current = neighbor_to_dest;
+        }
 
 	    updated_value = true;
-	    std::cout << "  Found! Dist from " << j->first << " --> cost = " << current;
+	    // std::cout << "  Found! Dist from " << j->first << " --> cost = " << current;
             
 	    if (current < minCost) {
-               std::cout << "(new min)";
-	       minCost = current;
-               nextHop = j->first;
+            // std::cout << "(new min)";
+	        minCost = current;
+            nextHop = j->first;
 	    }
-            std::cout << std::endl;
+            // std::cout << std::endl;
         }
 
         if (updated_value) {
             if (minCost != i->second) {
                 i->second = minCost;
                 sendDV = true; 
-                std::cout << "Found a new minCost\n";
+                // std::cout << "Found a new minCost\n";
             }
         }
 
         if (minCost < std::numeric_limits<int>::max()) {
-            std::cout << "Adding Entry for " << dest << " in routing table\n";
+            // std::cout << "Adding Entry for " << dest << " in routing table\n";
             RoutingTableEntry nodeEntry;
             Ipv4Address nha = ResolveNodeIpAddress(std::atoi(nextHop.c_str()));
             nodeEntry.destAddr = ResolveNodeIpAddress(std::atoi(dest.c_str()));
@@ -835,7 +839,7 @@ DVRoutingProtocol::BellmanFord(distanceVector &ndv) {
         //TRAFFIC_LOG("Sending DV table");
         SendDVTableMessage();
     }
-    DumpRoutingTable();
+    // DumpRoutingTable();
 }
 
 bool
