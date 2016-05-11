@@ -238,7 +238,7 @@ class LSRoutingProtocol : public CommRoutingProtocol
 
     void GetNeighbors(const std::string, std::vector<Ipv4Address>&);
     uint32_t DistanceToNeighbor(const std::string, const std::string);
-    void removeLSTableLink()
+    void removeLSTableLink(Ipv4Address, nbrCostsVec&);
     void removeLSTableLink_old(Ipv4Address, Ipv4Address);
     std::string GetMinCostNode( const std::map<std::string, bool>& );
 
