@@ -215,7 +215,7 @@ class DVRoutingProtocol : public CommRoutingProtocol
      *
      * \param ipv4Address IP address of node.
      */
-
+    void SendPacket (Ptr<Packet>, Ipv4Address);
     virtual std::string ReverseLookup (Ipv4Address ipv4Address); 
     
     // Status 
