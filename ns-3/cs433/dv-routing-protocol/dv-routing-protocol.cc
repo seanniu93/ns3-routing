@@ -313,10 +313,10 @@ DVRoutingProtocol::SendHello () {
 void
 DVRoutingProtocol::SendDVTableMessage () {
   uint32_t sequenceNumber = GetNextSequenceNumber ();
+  std::vector<std::pair<Ipv4Address, uint32_t> > neighborAddrs;
 
-  std::vector<Ipv4Address> neighborAddrs;
   for (ntEntry i = m_neighborTable.begin (); i != m_neighborTable.end (); i++) {
-    neighborAddrs.push_back( i->second.neighborAddr );
+    neighborAddrs.push_back( std::make_pair(i->second.neighborAddr, 1) ); // "1" should be cost
   }
 
   //TRAFFIC_LOG("Sending LSTableMessage: sequence num: " << sequenceNumber << ", neighborAddrs.size: " << neighborAddrs.size());
@@ -378,7 +378,7 @@ DVRoutingProtocol::RecvDVMessage (Ptr<Socket> socket)
         ProcessHelloReq (dvMessage, socket);
         break;
       case DVMessage::DV_TABLE_MSG:
-        ProcessDVTableMessage(dvMessage);
+        ProcessDVTableMessage(dvMessage, socket);
         break;
       default:
         ERROR_LOG ("Unknown Message Type!");
@@ -474,25 +474,45 @@ DVRoutingProtocol::ProcessHelloReq (DVMessage dvMessage, Ptr<Socket> socket)
 }
 
 void
-DVRoutingProtocol::ProcessDVTableMessage (DVMessage dvMessage) {
+DVRoutingProtocol::ProcessDVTableMessage (DVMessage dvMessage, Ptr<Socket> socket) {
 
-    //std::vector<std::pair<Ipv4Address, uint32_t> > 
-    std::vector<Ipv4Address> neighborAddrs = dvMessage.GetDVTableMsg().neighborCosts;
+    // extract info from dvMessage
+    std::vector<std::pair<Ipv4Address, uint32_t> > neighborAddrs = dvMessage.GetDVTableMsg().neighborCosts;
     uint32_t seqNum = dvMessage.GetSequenceNumber();
     Ipv4Address fromAddr = dvMessage.GetOriginatorAddress();
     std::string fromNode = ReverseLookup(fromAddr);
 
-    // extract neighbor's distance vector from the dvMessage
-
     // insert it into the neighbor table
+    distanceVector newdv;
+    for (int i = 0; i < neighborAddrs.size(); i++) {
+        newdv[ReverseLookup(neighborAddrs[i].first)] = neighborAddrs[i].second;
+    } 
 
+    // If the NeighborTableEntry does not exist, add it. (This will only happen
+    // if the hello message is lost for some reason.)
+    ntEntry entry = m_neighborTable.find(fromNode);
+    if (entry == m_neighborTable.end()) {
+        Ipv4Address interfaceAddr;
+        std::map<Ptr<Socket> , Ipv4InterfaceAddress>::const_iterator i = m_socketAddresses.find(socket);
+        if (i != m_socketAddresses.end()) {
+            interfaceAddr = i->second.GetLocal();
+        }
+        else {
+            ERROR_LOG ("Didn't find socket in m_socketAddresses");
+        }
+
+        NeighborTableEntry entry = { fromAddr, interfaceAddr , Simulator::Now(), newdv };
+        m_neighborTable.insert(std::make_pair(fromNode, entry));
+    } else {
+        entry->second.dv = newdv;
+    }
+    
     // run DV algorithm
     BellmanFord();
 
     // Send new packet with neighbor info
     //SendDVTableMessage();
 }
-
 
 bool
 DVRoutingProtocol::IsOwnAddress (Ipv4Address originatorAddress)

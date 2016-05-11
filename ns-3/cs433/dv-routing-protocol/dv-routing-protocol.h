@@ -92,7 +92,7 @@ class DVRoutingProtocol : public CommRoutingProtocol
     void ProcessPingRsp (DVMessage DVMessage);
     void ProcessHelloReq (DVMessage dvMessage, Ptr<Socket> socket);
     void ProcessHelloRsp (DVMessage dvMessage, Ptr<Socket> socket);
-    void ProcessDVTableMessage (DVMessage dvMessage);
+    void ProcessDVTableMessage (DVMessage dvMessage, Ptr<Socket> socket);
 
     // void BellmanFord();
 

@@ -347,7 +347,7 @@ uint32_t
 DVMessage::DVTableMsg::GetSerializedSize (void) const
 {
   uint32_t size;
-  size = sizeof(uint16_t) + (IPV4_ADDRESS_SIZE + sizeof(uint32_t)) * neighborsCosts.size();
+  size = sizeof(uint16_t) + (IPV4_ADDRESS_SIZE + sizeof(uint32_t)) * neighborCosts.size();
   return size;
 }
 
@@ -355,7 +355,7 @@ void
 DVMessage::DVTableMsg::Print (std::ostream &os) const
 {
   os << "DVTableMsg:: Neighbors: ";
-  for(unsigned i = 0; i < neighbors.size(); i++) {
+  for(unsigned i = 0; i < neighborCosts.size(); i++) {
       os << neighborCosts[i].first << ":" << neighborCosts[i].second << ", ";
   }
   os << "\b\b\n";
@@ -381,7 +381,7 @@ DVMessage::DVTableMsg::Deserialize (Buffer::Iterator &start)
     uint32_t cost = start.ReadNtohU32 ();
     neighborCosts.push_back( std::make_pair(addr, cost) );
   }
-  return LSTableMsg::GetSerializedSize ();
+  return DVTableMsg::GetSerializedSize ();
 }
 
 void

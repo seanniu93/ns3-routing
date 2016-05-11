@@ -194,7 +194,7 @@ class DVMessage : public Header
 
     /* DV Table Msg */
     DVTableMsg GetDVTableMsg ();
-    void SetDVTableMsg (std::vector<Ipv4Address>);
+    void SetDVTableMsg (nbrCostsVec neighborCosts);
 
 }; // class DVMessage
 
