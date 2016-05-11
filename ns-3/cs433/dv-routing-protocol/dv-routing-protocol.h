@@ -207,6 +207,9 @@ class DVRoutingProtocol : public CommRoutingProtocol
      *
      * \param nodeNumber Node Number as in Inet topology.
      */
+
+    void SendPacket (Ptr<Packet>, Ipv4Address);
+
     virtual Ipv4Address ResolveNodeIpAddress (uint32_t nodeNumber);    
     /**
      * \brief Returns the node number which is using the specified IP.

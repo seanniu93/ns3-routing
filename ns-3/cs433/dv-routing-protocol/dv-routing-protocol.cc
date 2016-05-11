@@ -292,6 +292,23 @@ DVRoutingProtocol::BroadcastPacket (Ptr<Packet> packet)
 }
 
 void
+DVRoutingProtocol::SendPacket (Ptr<Packet> packet, Ipv4Address destAddr)
+{
+  for (std::map<Ptr<Socket> , Ipv4InterfaceAddress>::const_iterator i =
+      m_socketAddresses.begin (); i != m_socketAddresses.end (); i++)
+    {
+      Ipv4Address broadcastAddr = i->second.GetLocal ().GetSubnetDirectedBroadcast (i->second.GetMask ());
+
+      if (destAddr == broadcastAddr) {
+        i->first->SendTo (packet, 0, InetSocketAddress (broadcastAddr, m_dvPort));
+        return;
+      }
+    }
+
+   ERROR_LOG("Attempted to send packet to non-neighbor.");
+}
+
+void
 DVRoutingProtocol::ProcessCommand (std::vector<std::string> tokens)
 {
   std::vector<std::string>::iterator iterator = tokens.begin();
@@ -376,11 +393,30 @@ DVRoutingProtocol::SendDVTableMessage () {
 
   TRAFFIC_LOG("Sending DVTableMessage: sequence num: " << sequenceNumber << ", neighborAddrs.size: " << neighborAddrs.size());
 
-  Ptr<Packet> packet = Create<Packet> ();
-  DVMessage dvMessage = DVMessage (DVMessage::DV_TABLE_MSG, sequenceNumber, 1, m_mainAddress);
-  dvMessage.SetDVTableMsg(neighborAddrs);
-  packet->AddHeader (dvMessage);
-  BroadcastPacket (packet);
+  // for each neighbor:
+  for (distanceVector::iterator i = m_costs.begin(); i != m_costs.end(); i++) {
+    Ptr<Packet> packet = Create<Packet> ();
+    DVMessage dvMessage = DVMessage (DVMessage::DV_TABLE_MSG, sequenceNumber, 1, m_mainAddress);
+
+    // for each entry in my distance vector:
+    std::vector<std::pair<Ipv4Address, uint32_t> > newdv;
+    for (distanceVector::iterator j = m_dv.begin(); j != m_dv.end(); j++) {
+      std::string dest = j->first;
+      Ipv4Address destAddr = ResolveNodeIpAddress(std::atoi(dest.c_str()));
+      rtEntry rte = m_routingTable.find(dest);
+
+      if (rte != m_routingTable.end() && rte->second.nextHopAddr == destAddr) {
+         newdv.push_back(std::make_pair(destAddr, M_INF));
+      } else {
+         newdv.push_back(std::make_pair(destAddr, m_dv[dest]));
+      }
+    }
+
+    Ipv4Address neighAddr = ResolveNodeIpAddress(std::atoi(i->first.c_str()));
+    dvMessage.SetDVTableMsg(newdv);
+    packet->AddHeader (dvMessage);
+    SendPacket(packet, m_neighborTable.find(i->first)->second.neighborAddr);
+  }
 }
 
 void
