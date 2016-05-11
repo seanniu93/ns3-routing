@@ -448,7 +448,7 @@ DVRoutingProtocol::ProcessHelloReq (DVMessage dvMessage, Ptr<Socket> socket)
       ERROR_LOG ("Didn't find socket in m_socketAddresses");
     }
 
-   TRAFFIC_LOG( "Received HelloReq, From Neighbor: " << fromNode << ", with Addr: " << neighAddr << ", InterfaceAddr: " << interfaceAddr << '\n');
+   //TRAFFIC_LOG( "Received HelloReq, From Neighbor: " << fromNode << ", with Addr: " << neighAddr << ", InterfaceAddr: " << interfaceAddr << '\n');
 
   ntEntry e = m_neighborTable.find( fromNode );
 
@@ -462,69 +462,33 @@ DVRoutingProtocol::ProcessHelloReq (DVMessage dvMessage, Ptr<Socket> socket)
     NeighborTableEntry entry = { neighAddr, interfaceAddr , Simulator::Now(), emptydv };
     m_neighborTable.insert(std::make_pair(fromNode, entry));
 
-    //also add it to the lsTable (with neighbor information for all nodes in network)
-    //see if this node is already in that table
-    dvtEntry dvte = m_dvTable.find( ReverseLookup(m_mainAddress) );
-    if ( dvte != m_dvTable.end() ) {//if this node is already in there
-      //then just add this neighbor to the neighbors vector
-      dvte->second.neighborCosts.push_back(std::make_pair(neighAddr, 1));//TODO: change cost here
+    //add it to our neigbor (and distance?) vectors
+    m_dv.insert( std::make_pair(fromNode, 1) );
+    m_costs.insert( std::make_pair(fromNode, 1) );
 
-    } else {
-      std::vector<std::pair<Ipv4Address, uint32_t> > nbrCosts;
-      nbrCosts.push_back(std::make_pair(neighAddr, 1));  //TODO: change cost here
-      DVTableEntry dvtEntry = { nbrCosts, dvMessage.GetSequenceNumber() };
-      m_dvTable.insert(std::make_pair(ReverseLookup(m_mainAddress), dvtEntry));
+    //TODO: run DV Algorithm
+    BellmanFord();
 
-    }
-
-    //TODO: run Bellman Ford
-
-    SendDVTableMessage(); // neighbor table has changed, so resend neighbor info
+    //SendDVTableMessage(); // neighbor table has changed, so resend neighbor info
   }
-
 }
 
-// TODO: how does this need to change?
 void
 DVRoutingProtocol::ProcessDVTableMessage (DVMessage dvMessage) {
     std::vector<Ipv4Address> neighborAddrs = dvMessage.GetDVTableMsg().neighbors;
     uint32_t seqNum = dvMessage.GetSequenceNumber();
-
-//    TRAFFIC_LOG("Received from: " << ReverseLookup(dvMessage.GetOriginatorAddress()) << "\n Neighbors: " );
-//    for (unsigned i = 0; i < neighborAddrs.size(); ++i) {
-//        std::cout << neighborAddrs[i] << " " << ReverseLookup(neighborAddrs[i]) << '\n';
-//    }
-//    std::cout << '\n';
-
-    // if we have not seen the packet before, broadcast it
     Ipv4Address fromAddr = dvMessage.GetOriginatorAddress();
     std::string fromNode = ReverseLookup(fromAddr);
 
-    dvtEntry entry = m_dvTable.find(fromNode);
+    // extract neighbor's distance vector from the dvMessage
 
-//    TRAFFIC_LOG("Sequence Number of this entry: " << entry->second.sequenceNumber << " SeqNum of new packet: " << seqNum);
+    // insert it into the neighbor table
 
-    // Technically, I think we don't need the seqNum for dv because there is not
-    // way an old packet will arrive after a newer one if the messages are only neighbor-to-neighbor
-    if (entry == m_dvTable.end() || seqNum > entry->second.sequenceNumber) {
+    // run DV algorithm
+    BellmanFord();
 
-      //if it was already in the table, delete it first
-      if (entry != m_dvTable.end())
-        m_dvTable.erase(entry);
-
-      // Add to DVTable
-      std::vector<std::pair<Ipv4Address, uint32_t> > neighborCosts;
-      for (int i = 0; i < neighborAddrs.size(); i++) {
-        neighborCosts.push_back(std::make_pair(neighborAddrs[i], 1)); // TODO: change cost here
-      }
-      DVTableEntry newEntry = { neighborCosts, seqNum };
-      m_dvTable.insert(std::pair<std::string, DVTableEntry>(fromNode, newEntry));
-
-      // Run Bellman Ford
-
-      // Send new packet with neighbor info
-      SendDVTableMessage();
-    }
+    // Send new packet with neighbor info
+    //SendDVTableMessage();
 }
 
 
@@ -580,15 +544,20 @@ DVRoutingProtocol::AuditHellos()
       NeighborTableEntry entry = i->second;
   //    TRAFFIC_LOG ("AUDIT HELLOS: entry.lastUpdated: " << entry.lastUpdated.GetMilliSeconds() << ", timeout: " << m_helloTimeout.GetMilliSeconds() << ", time is now: " << Simulator::Now().GetMilliSeconds());
 
-  if ( entry.lastUpdated.GetMilliSeconds() + m_helloTimeout.GetMilliSeconds() <= Simulator::Now().GetMilliSeconds()) {
-         removeDVTableLink( m_mainAddress, entry.neighborAddr );
-         m_neighborTable.erase(i);
-         sendMsg = true;
+      if ( entry.lastUpdated.GetMilliSeconds() + m_helloTimeout.GetMilliSeconds() <= Simulator::Now().GetMilliSeconds()) {
+          std::string nodeNumber = ReverseLookup(entry.neighborAddr);
+          m_dv.erase( nodeNumber );
+          m_costs.erase( nodeNumber );
+          m_neighborTable.erase(i);
+          sendMsg = true;
       }
   }
 
   if (sendMsg) {
-      SendDVTableMessage(); // neighbor table info has changed, so resend neighbor info
+      // run DV Algorithm
+      BellmanFord();
+
+      //SendDVTableMessage();
   }
 
   // Reschedule timer
@@ -596,32 +565,50 @@ DVRoutingProtocol::AuditHellos()
 }
 
 void
-DVRoutingProtocol::removeDVTableLink(Ipv4Address node1, Ipv4Address node2) {
-    dvtEntry entry1 = m_dvTable.find( ReverseLookup(node1) );
-    dvtEntry entry2 = m_dvTable.find( ReverseLookup(node2) );
+DVRoutingProtocol::BellmanFord() {
 
-    if (entry1 != m_dvTable.end()) {
-        std::vector<std::pair<Ipv4Address, uint32_t> > pairs1 = entry1->second.neighborCosts;
-        for (unsigned i = 0; i < pairs1.size(); i++) {
-            if (pairs1[i].first == node2) {
-                pairs1.erase(pairs1.begin() + i);
+    // First, collect any nodes in our neighbors' DVs that is not in our collection
+    for (ntEntry i = m_neighborTable.begin (); i != m_neighborTable.end (); i++) {
+        distanceVector d = i->second.dv;
+        for (distanceVector::iterator j = d.begin(); j != d.end(); j++) {
+            std::string name = j->first;
+            if (m_dv.find(name) == m_dv.end()) {
+                m_dv.insert( std::make_pair(name, std::numeric_limits<int>::max()) );
             }
         }
     }
 
-    if (entry2 != m_dvTable.end()) {
-        std::vector<std::pair<Ipv4Address, uint32_t> > pairs2 = entry2->second.neighborCosts;
-        for (unsigned i = 0; i < pairs2.size(); i++) {
-            if (pairs2[i].first == node1) {
-                pairs2.erase(pairs2.begin() + i);
+    // Second, iterate through all known nodes and find the minimum distance
+    for (distanceVector::iterator i = m_dv.begin(); i != m_dv.end(); i++) {
+        uint32_t minCost = std::numeric_limits<int>::max();
+        std::string dest = i->first;
+
+        // find minimum
+        for (distanceVector::iterator j = m_costs.begin(); j != m_costs.end(); j++) {
+            // (Don't try to calculate neighbor's distance to neighbor, which is already set to 1)
+            if (i->first != j->first) {
+                uint32_t cost_to_neighbor = j->second;
+                uint32_t current = std::numeric_limits<int>::max();
+
+                NeighborTableEntry entry = m_neighborTable.find(j->first)->second;
+                distanceVector::iterator neighDest = entry.dv.find(dest);
+
+                // If the neighbor can reach the destination, calculate the cost
+                if (neighDest != entry.dv.end() && neighDest->second != std::numeric_limits<int>::max()) {
+                    uint32_t neighbor_to_dest = neighDest->second;
+                    current = cost_to_neighbor + neighbor_to_dest;
+                }
+
+                if (current < minCost) {
+                    minCost = current;
+                }
+                i->second = minCost;
             }
         }
     }
+
+    SendDVTableMessage();
 }
-
-
-
-
 
 
 uint32_t

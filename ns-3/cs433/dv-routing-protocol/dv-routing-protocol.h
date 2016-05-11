@@ -229,7 +229,7 @@ class DVRoutingProtocol : public CommRoutingProtocol
      * \param ipv4Address IP address.
      */
     bool IsOwnAddress (Ipv4Address originatorAddress);
-    void removeDVTableLink(Ipv4Address, Ipv4Address);
+    void BellmanFord ();
 
   private:
     std::map< Ptr<Socket>, Ipv4InterfaceAddress > m_socketAddresses;
