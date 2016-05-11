@@ -1,7 +1,6 @@
-#####################################################
-### CS533: Link State and Distance Vector Routing ###
+# CS533: Link State and Distance Vector Routing #
 
-### Luciano Dyballa, Sean Niu, Michael McMillan
+#### Luciano Dyballa, Sean Niu, Michael McMillan
 
 In this project, we implemented two routing protocols in the ns-3 framework.
 Some of the most important and essential design decisions we made include 
@@ -113,20 +112,26 @@ and the ping from 0 to 13 fails.
 
 We believe that this test works successfully in both LS and DV.
 
-         13
-      /  |  \
-    10   11   12
-    |    |    |
-    9    |    |
-  / |    |    |
-6   7    8    |
-  \ |    |    |
-    5    |    |
-    |    |    |
-    2    3    4
-      \  |  /
-         1
-         |
-         0
+             13
+          /  |  \
+        10   11   12
+        |    |    |
+        9    |    |
+      / |    |    |
+    6   7    8    |
+      \ |    |    |
+        5    |    |
+        |    |    |
+        2    3    4
+          \  |  /
+             1
+             |
+             0
 
 
+### Extra credit ###
+Apart from the reverse poisoning, our implementation is
+able to incorporate arbitrary cost information for each link. Even though we
+couldn't modify the simulator-main.cc code to allow for the reading of the link
+weights in the topology file, if that is properly set up our program should be
+able to run without practically any modifications.
