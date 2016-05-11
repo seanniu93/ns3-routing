@@ -12,12 +12,14 @@
 * DV VERBOSE TRAFFIC ON
 * APP VERBOSE TRAFFIC ON
 
+* DV VERBOSE DEBUG ON
+
 # Advance Time pointer by 60 seconds. Allow the routing protocol to stabilize.
 TIME 60000
 
-LINK DOWN 1 2
+# LINK DOWN 1 2
 
-TIME 6100
+TIME 6200
 
 #0 DV DUMP NEIGHBORS
 0 DV DUMP DV
