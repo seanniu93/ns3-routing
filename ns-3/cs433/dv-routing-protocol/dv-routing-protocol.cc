@@ -633,6 +633,13 @@ DVRoutingProtocol::AuditHellos()
 
 void
 DVRoutingProtocol::BellmanFord(distanceVector &ndv) {
+    Ipv4Address rt_destAddr;
+    uint32_t rt_nextHopNum;
+    Ipv4Address rt_nextHopAddr;
+    Ipv4Address rt_interfaceAddr;
+    uint32_t rt_cost;
+  
+
     TRAFFIC_LOG("RUNNING BELLMAN FORD");
     for (distanceVector::iterator j = ndv.begin(); j != ndv.end(); j++) {
         std::string name = j->first;
@@ -654,11 +661,18 @@ DVRoutingProtocol::BellmanFord(distanceVector &ndv) {
         updated_value = false;
         std::string dest = i->first;
 
+        // create a new routing table entry
+       //check if it's ourselves
         if (dest == ReverseLookup(m_mainAddress)) {
+            //Ipv4Address thisAddr = ResolveNodeIpAddress(std::atoi(dest.c_str()));
+            //uint32_t AddrNum = thisAddr.Get();
+            RoutingTableEntry myEntry = {m_mainAddress, m_mainAddress.Get(),
+              m_mainAddress, m_mainAddress, 0};          
+            m_routingTable.insert(std::make_pair(ReverseLookup(m_mainAddress), myEntry));
             continue;
         }
         std::cout << "Computing min dist to " << dest << std::endl;
-        // find minimum
+        
         //uint32_t current = std::numeric_limits<int>::max();
         for (distanceVector::iterator j = m_costs.begin(); j != m_costs.end(); j++) {
             std::cout << "  Going through " << j->first << "'s DV...\n";
