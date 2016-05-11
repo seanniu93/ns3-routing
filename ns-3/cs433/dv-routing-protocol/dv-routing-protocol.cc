@@ -306,7 +306,7 @@ void
 DVRoutingProtocol::SendHello () {
   Ipv4Address destAddress = ResolveNodeIpAddress (0); // TODO remove this and "hello"
   uint32_t sequenceNumber = GetNextSequenceNumber ();
-  TRAFFIC_LOG ("Broadcasting HELLO_REQ, SequenceNumber: " << sequenceNumber);
+  //TRAFFIC_LOG ("Broadcasting HELLO_REQ, SequenceNumber: " << sequenceNumber);
 //    //Ptr<HelloRequest> helloRequest = Create<HelloRequest> (sequenceNumber, Simulator::Now(), destAddress, "hello", m_helloTimeout);
    Ptr<Packet> packet = Create<Packet> ();
    DVMessage dvMessage = DVMessage (DVMessage::HELLO_REQ, sequenceNumber, 1, m_mainAddress);
@@ -384,6 +384,18 @@ DVRoutingProtocol::DumpRoutingTable ()
 {
   STATUS_LOG (std::endl << "**************** Route Table ********************" << std::endl
               << "DestNumber\t\tDestAddr\t\tNextHopNumber\t\tNextHopAddr\t\tInterfaceAddr\t\tCost");
+	
+      for (rtEntry i = m_routingTable.begin (); i != m_routingTable.end (); i++)
+	{
+	    RoutingTableEntry entry = i->second;
+            std::string fromNode = ReverseLookup (entry.destAddr);
+
+	    PRINT_LOG (fromNode << "\t\t" << entry.destAddr << "\t\t" << entry.nextHopNum << "\t\t"
+	       << entry.nextHopAddr << "\t\t" << entry.interfaceAddr << "\t\t\t" << entry.cost << std::endl);
+
+	    checkRouteTableEntry (fromNode, entry.destAddr, entry.nextHopNum, entry.nextHopAddr, 
+	        entry.interfaceAddr, entry.cost);
+	}
 
   PRINT_LOG ("");
 
@@ -485,7 +497,7 @@ DVRoutingProtocol::ProcessHelloReq (DVMessage dvMessage, Ptr<Socket> socket)
       ERROR_LOG ("Didn't find socket in m_socketAddresses");
     }
 
-   TRAFFIC_LOG( "Received HelloReq, From Neighbor: " << fromNode << ", with Addr: " << neighAddr << ", InterfaceAddr: " << interfaceAddr << '\n');
+   //TRAFFIC_LOG( "Received HelloReq, From Neighbor: " << fromNode << ", with Addr: " << neighAddr << ", InterfaceAddr: " << interfaceAddr << '\n');
 
   ntEntry e = m_neighborTable.find( fromNode );
 
@@ -609,7 +621,7 @@ DVRoutingProtocol::AuditHellos()
   // If "last updated" is more than helloTimeout seconds ago, remove it from the NeighborTable
   for (ntEntry i = m_neighborTable.begin (); i != m_neighborTable.end (); i++) {
       NeighborTableEntry entry = i->second;
-      TRAFFIC_LOG ("AUDIT HELLOS: entry.lastUpdated: " << entry.lastUpdated.GetMilliSeconds() << ", timeout: " << m_helloTimeout.GetMilliSeconds() << ", time is now: " << Simulator::Now().GetMilliSeconds());
+      //TRAFFIC_LOG ("AUDIT HELLOS: entry.lastUpdated: " << entry.lastUpdated.GetMilliSeconds() << ", timeout: " << m_helloTimeout.GetMilliSeconds() << ", time is now: " << Simulator::Now().GetMilliSeconds());
 
       if ( entry.lastUpdated.GetMilliSeconds() + m_helloTimeout.GetMilliSeconds() <= Simulator::Now().GetMilliSeconds()) {
           std::string nodeNumber = ReverseLookup(entry.neighborAddr);
@@ -633,13 +645,6 @@ DVRoutingProtocol::AuditHellos()
 
 void
 DVRoutingProtocol::BellmanFord(distanceVector &ndv) {
-    Ipv4Address rt_destAddr;
-    uint32_t rt_nextHopNum;
-    Ipv4Address rt_nextHopAddr;
-    Ipv4Address rt_interfaceAddr;
-    uint32_t rt_cost;
-  
-
     TRAFFIC_LOG("RUNNING BELLMAN FORD");
     for (distanceVector::iterator j = ndv.begin(); j != ndv.end(); j++) {
         std::string name = j->first;
@@ -661,18 +666,22 @@ DVRoutingProtocol::BellmanFord(distanceVector &ndv) {
         updated_value = false;
         std::string dest = i->first;
 
+        std::string nextHop;
+
         // create a new routing table entry
        //check if it's ourselves
         if (dest == ReverseLookup(m_mainAddress)) {
-            //Ipv4Address thisAddr = ResolveNodeIpAddress(std::atoi(dest.c_str()));
-            //uint32_t AddrNum = thisAddr.Get();
-            RoutingTableEntry myEntry = {m_mainAddress, m_mainAddress.Get(),
-              m_mainAddress, m_mainAddress, 0};          
-            m_routingTable.insert(std::make_pair(ReverseLookup(m_mainAddress), myEntry));
+            RoutingTableEntry nodeEntry;
+            nodeEntry.destAddr = m_mainAddress;
+            nodeEntry.nextHopNum = m_mainAddress.Get();
+            nodeEntry.nextHopAddr = m_mainAddress;
+            nodeEntry.interfaceAddr = m_mainAddress;
+            nodeEntry.cost = 0;
+            m_routingTable.insert(std::make_pair(ReverseLookup(m_mainAddress), nodeEntry));
             continue;
         }
         std::cout << "Computing min dist to " << dest << std::endl;
-        
+
         //uint32_t current = std::numeric_limits<int>::max();
         for (distanceVector::iterator j = m_costs.begin(); j != m_costs.end(); j++) {
             std::cout << "  Going through " << j->first << "'s DV...\n";
@@ -701,12 +710,15 @@ DVRoutingProtocol::BellmanFord(distanceVector &ndv) {
 
 	    updated_value = true;
 	    std::cout << "  Found! Dist from " << j->first << " --> cost = " << current;
+            
 	    if (current < minCost) {
                std::cout << "(new min)";
 	       minCost = current;
+               nextHop = j->first;
 	    }
             std::cout << std::endl;
         }
+
         if (updated_value) {
             if (minCost != i->second) {
                 i->second = minCost;
@@ -714,13 +726,29 @@ DVRoutingProtocol::BellmanFord(distanceVector &ndv) {
                 std::cout << "Found a new minCost\n";
             }
         }
+
+        if (minCost < std::numeric_limits<int>::max()) {
+            std::cout << "Adding Entry for " << dest << " in routing table\n";
+            RoutingTableEntry nodeEntry;
+            Ipv4Address nha = ResolveNodeIpAddress(std::atoi(nextHop.c_str()));
+            nodeEntry.destAddr = ResolveNodeIpAddress(std::atoi(dest.c_str()));
+            nodeEntry.nextHopNum = nha.Get();
+            nodeEntry.nextHopAddr = nha;
+            nodeEntry.interfaceAddr = m_neighborTable.find(ReverseLookup(nha))->second.interfaceAddr;
+            nodeEntry.cost = minCost;
+            m_routingTable.insert(std::make_pair(dest, nodeEntry));
+            //DumpRoutingTable();
+        }
+
     }
     if (sendDV) {
         //TRAFFIC_LOG("Sending DV table");
         SendDVTableMessage();
     }
-}
 
+    DumpRoutingTable();
+
+}
 
 uint32_t
 DVRoutingProtocol::GetNextSequenceNumber ()
