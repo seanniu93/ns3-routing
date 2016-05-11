@@ -197,7 +197,20 @@ LSRoutingProtocol::RouteOutput (Ptr<Packet> packet, const Ipv4Header &header, Pt
     Ptr<Ipv4Route> ipv4Route = 0;
     RoutingTableEntry entry;
 
-    if (SearchTable (entry, header.GetDestination ())) {
+    if (header.GetDestination () == m_mainAddress) {
+         // DEBUG_LOG ("Found route in table");
+        Ipv4Address local = Ipv4Address("127.0.0.1");
+        ipv4Route = Create<Ipv4Route> ();
+        ipv4Route->SetDestination (header.GetDestination ());
+        ipv4Route->SetSource (m_mainAddress);
+        ipv4Route->SetGateway (local);
+        // Not 100% sure below is correct
+        // ipv4Route->SetOutputDevice (outInterface); // ????
+        int32_t interface = m_ipv4->GetInterfaceForAddress(local);
+        ipv4Route->SetOutputDevice(m_ipv4->GetNetDevice (interface));
+    }
+
+    else if (SearchTable (entry, header.GetDestination ())) {
         // DEBUG_LOG ("Found route in table");
         ipv4Route = Create<Ipv4Route> ();
         ipv4Route->SetDestination (header.GetDestination ());
@@ -207,7 +220,9 @@ LSRoutingProtocol::RouteOutput (Ptr<Packet> packet, const Ipv4Header &header, Pt
         // ipv4Route->SetOutputDevice (outInterface); // ????
         int32_t interface = m_ipv4->GetInterfaceForAddress(entry.interfaceAddr);
         ipv4Route->SetOutputDevice(m_ipv4->GetNetDevice (interface));
-    } else {
+    }
+
+    else {
         Ptr<Ipv4Route> ipv4Route = m_staticRouting->RouteOutput (packet, header, outInterface, sockerr);
     }
 
