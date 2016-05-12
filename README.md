@@ -1,4 +1,4 @@
-# CS533: Link State and Distance Vector Routing #
+# CS533: Link State and Distance Vector Routing
 
 #### Luciano Dyballa, Sean Niu, Michael McMillan
 
@@ -6,8 +6,10 @@ In this project, we implemented two routing protocols in the ns-3 framework.
 Some of the most important and essential design decisions we made include 
 the following:
 
-### Neighbor Discovery ###
-1) Each node periodically sends out a hello packet using the SendHello()
+# Description
+
+## Neighbor Discovery
+1. Each node periodically sends out a hello packet using the SendHello()
    function.  Upon receiving the hello message, a ProcessHelloRequest() event
    is triggered, then the program checks if we have seen this message, and if not,
    inserts the neighbor into the neighbor table, runs the Dijkstra() function,
@@ -19,20 +21,20 @@ the following:
    We followed RFC 2328 on OSPF, which indicates that Hello replies are
    not necessary in general.
 
-2) The neighbor table is a map from Node numbers (std::string) to 
+2. The neighbor table is a map from Node numbers (std::string) to
    NeighborTableEntry structs, which consist of address and interface information.
    The routing table is a map from Node numbers (std::string) to
    RoutingTableEntry structs, which contain all of the interface and destination
    info.
 
-3) The AuditHellos() function automatically sends a new Hello message, checks 
+3. The AuditHellos() function automatically sends a new Hello message, checks
    that the node received a hello packet from all of its neighbors recently and,
    if a hello was not received, removes the associated node from the Neighbor table.
    In this case, it also calls Dijkstra() and sends an LSTableMessage() with the
    new table info.
 
-### Link State ###
-1) We monitored the sequence numbers in the LSTableEntry struct in order to
+## Link State
+1. We monitored the sequence numbers in the LSTableEntry struct in order to
    keep track of the the most recent message seen so we could prevent messages
    from needlessly flooding the network or getting caught in infinite loops.
    This way, we keep the number of packets in the network at any one time to a minimum.
@@ -40,18 +42,18 @@ the following:
    changes---upon receiving a Hello message or when auditing lost Hello messages
    (AuditHellos()) that indicate a down link. 
 
-2) Our primary data structures were a neighbor table (the address and interface info
+2. Our primary data structures were a neighbor table (the address and interface info
    about each neighbor), a routing table (with forwarding info gathered with Dijsktra's
    algorithm), and the LSTable, which contained the neighbor costs and sequence numbers
    also used in conjunction with Dijsktra.
 
-3) Forwarding required a relatively small amount of code, but team members spent
+3. Forwarding required a relatively small amount of code, but team members spent
    a lot of time investigating the details of the fields that needed to be set.
    For RouteInput and RouteOutput, we had to create an ipv4Route object with
    several fields set to the values we collected from Dijsktra's algorithm.
 
-### Distance Vector ###
-1) The team tried two approaches to the Count to Infinity problem.  In the 
+## Distance Vector
+1. The team tried two approaches to the Count to Infinity problem.  In the
    first, we impose an upper bound on the number of hops to a destination.  For this 
    solution (recommended in the assignment specification), if the cost exceeds 16,
    the program does not call SendDVTableMessage() and does not change the information
@@ -64,7 +66,7 @@ the following:
    routing. As part of our effort, we wrote a SendPacket() function that would allow 
    us to handle each neighbor separately.
 
-2) To implement the distance vector protocol, we added three data structures:
+2. To implement the distance vector protocol, we added three data structures:
    a map with neighbor costs (m_costs), a map with the estimated cost for all known
    nodes (m_dv), and each neighbor's distance vector (added to the neighbor table).
    We initialize m_dv with the <NodeSelf, Cost=0>.  Then, the nodes begin to send
@@ -100,7 +102,7 @@ the following:
    and SendDTableMessage() very carefully, though we believe we were generally
    successful in managing and forwarding packets.
 
-### Testing ###
+## Testing
 We wrote three test files for our code.  The main scenario/topology (14-ls.sce)  
 breaks the shortest path multiple times and confirms that the routes are 
 adjusted correctly.  The first route should be 0-1-4-12-13.  Then, we break
@@ -128,10 +130,49 @@ We believe that this test works successfully in both LS and DV.
              |
              0
 
-
-### Extra credit ###
+## Extra credit
 Apart from the reverse poisoning, our implementation is
 able to incorporate arbitrary cost information for each link. Even though we
 couldn't modify the simulator-main.cc code to allow for the reading of the link
 weights in the topology file, if that is properly set up our program should be
 able to run without practically any modifications.
+
+
+# Running the Simulator
+
+## Building
+`./waf`
+
+## Commands
+While in the "ns-3" directory:
+
+Use the format
+```
+build/debug/cs433/simulator-main --inet-topo=<topology-file> --scenario=<scenario-file> --routing=<LS/DV/ANY/NS3>
+```
+
+### Examples
+
+```
+build/debug/cs433/simulator-main --inet-topo=cs433/topologies/10.topo --scenario=cs433/scenarios/10-ls.sce --routing=LS
+build/debug/cs433/simulator-main --inet-topo=cs433/topologies/14.topo --scenario=cs433/scenarios/14-ls.sce --routing=LS
+build/debug/cs433/simulator-main --inet-topo=cs433/topologies/triangle.topo --scenario=cs433/scenarios/triangle.sce --routing=DV
+build/debug/cs433/simulator-main --inet-topo=cs433/topologies/14.topo --scenario=cs433/scenarios/14-dv.sce --routing=DV
+```
+
+## Topology and Scenario Files
+
++ __10.topo__ - The provoided topology file
+  * _10-ls.sce_
+  * _10-ls-2.sce_
+  * _10-ls-3.sce_
++ __14.topo__ - The topology illustrated above
+  * _14-<ls,dv>.sce_ - Break shortest path multiple times and test ping
+  * _14-<ls,dv>-isolate.sce_ - Isolate node 6 by cutting its links one by one
+  * _14-<ls,dv>-teardown.sce_ - Break every link and bring it back up to see if routing recovers
+  * _14-<ls,dv>-blank.sce_ - Loads the topology and waits for user commands
++ __triangle.topo__ - A basic connected triangular network
+  * _triangle.sce_ - Test above network
+  * _reversePoison.sce_ - Break links to node 1
++ __3.topo__
+  * _dv-3.sce_
